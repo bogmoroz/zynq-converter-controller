@@ -2,6 +2,15 @@
 #include <stdio.h>
 #include "platform.h"
 #include <xil_printf.h>
+#include <zynq_registers.h>
+#include <xscugic.h> // Generic interrupt controller (GIC) driver
+
+/* The XScuGic driver instance data. The user is required to allocate a
+ * variable of this type for every intc device in the system. A pointer
+ * to a variable of this type is then passed to the driver API functions.
+ */
+XScuGic InterruptControllerInstance; // Interrupt controller instance
+
 
 float convert(float u)
 {
@@ -53,6 +62,24 @@ float convert(float u)
 
 int main()
 {
-	xil_printf("Hello World\n\r");
-	return 0;
+//	xil_printf("Hello World\n\r");
+//	return 0;
+	 // AXI GPIO Initialization (LEDs)
+	    AXI_LED_TRI &= ~(0b1111UL); // Direction mode - 0: output
+	    AXI_LED_DATA = 0b1010UL;    // Initialize one led on - one led off
+
+	    // Connect the Intc to the interrupt subsystem such that interrupts can occur.  This function is application specific.
+	    SetupInterruptSystem(&InterruptControllerInstance);
+	    // Set up  the Ticker timer
+	    SetupUART();
+	    SetupUARTInterrupt(&InterruptControllerInstance);
+	    SetupTimer();
+	    SetupTicker(&InterruptControllerInstance);
+
+	    while (1)
+	    {
+	        sleep(1);
+	        xil_printf("Lost in infinite main() loop...\r\n");
+	    }
+	    return 0;
 }
