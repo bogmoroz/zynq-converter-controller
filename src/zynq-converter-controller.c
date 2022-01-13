@@ -31,6 +31,24 @@ XGpio BTNS_SWTS, LEDS;
  */
 // XScuGic InterruptControllerInstance; // Interrupt controller instance
 
+#define NUMBER_OF_EVENTS 1
+#define BUTTON_1_PRESSED 0// Button 1 pressed
+#define BUTTON_2_PRESSED 1// Button 2 pressed
+#define BUTTON_3_PRESSED 2// Button 3 pressed
+#define BUTTON_4_PRESSED 3 // Button 4 pressed
+
+
+#define NUMBER_OF_STATES 3
+#define CONFIGURATION_STATE 0 // Configuration mode
+#define IDLING_STATE 1 // Idling mode
+#define MODULATING_STATE 2 // Modulating mode
+
+const char StateChangeTable[NUMBER_OF_STATES][NUMBER_OF_EVENTS]=\
+// event  BUTTON_1_PRESSED       BUTTON_2_PRESSED   BUTTON_3_PRESSED   BUTTON_4_PRESSED
+		{ CONFIGURATION_STATE,   IDLING_STATE,     	MODULATING_STATE,  CONFIGURATION_STATE, // CONFIGURATION_STATE
+	      CONFIGURATION_STATE,   IDLING_STATE,      MODULATING_STATE,  IDLING_STATE,        // IDLING_STATE
+		  CONFIGURATION_STATE,   IDLING_STATE,      MODULATING_STATE,  MODULATING_STATE, }; // MODULATING_STATE
+
 float convert(float u)
 {
 	unsigned int i, j;
