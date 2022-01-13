@@ -105,7 +105,9 @@ void PushButtons_Intr_Handler(void *data)
 	switch (buttons)
 	{
 	case LD0:
-		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD0); // LD0.
+		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD0); // LD0
+		xil_printf("Pressed button 0\n");
+		ProcessEvent(0);
 		break;
 	case LD1:
 		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD1); // LD1.

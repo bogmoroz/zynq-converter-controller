@@ -32,10 +32,7 @@ XGpio BTNS_SWTS, LEDS;
 // XScuGic InterruptControllerInstance; // Interrupt controller instance
 
 #define NUMBER_OF_EVENTS 1
-#define BUTTON_1_PRESSED 0// Button 1 pressed
-#define BUTTON_2_PRESSED 1// Button 2 pressed
-#define BUTTON_3_PRESSED 2// Button 3 pressed
-#define BUTTON_4_PRESSED 3 // Button 4 pressed
+#define GO_TO_NEXT_STATE 0 // Switch to next state
 
 
 #define NUMBER_OF_STATES 3
@@ -43,11 +40,30 @@ XGpio BTNS_SWTS, LEDS;
 #define IDLING_STATE 1 // Idling mode
 #define MODULATING_STATE 2 // Modulating mode
 
+int ProcessEvent(int Event);
+
 const char StateChangeTable[NUMBER_OF_STATES][NUMBER_OF_EVENTS]=\
-// event  BUTTON_1_PRESSED       BUTTON_2_PRESSED   BUTTON_3_PRESSED   BUTTON_4_PRESSED
-		{ CONFIGURATION_STATE,   IDLING_STATE,     	MODULATING_STATE,  CONFIGURATION_STATE, // CONFIGURATION_STATE
-	      CONFIGURATION_STATE,   IDLING_STATE,      MODULATING_STATE,  IDLING_STATE,        // IDLING_STATE
-		  CONFIGURATION_STATE,   IDLING_STATE,      MODULATING_STATE,  MODULATING_STATE, }; // MODULATING_STATE
+// event  GO_TO_NEXT_STATE
+		{ IDLING_STATE,     // CONFIGURATION_STATE
+	      MODULATING_STATE,     // IDLING_STATE
+	      CONFIGURATION_STATE,  }; // MODULATING_STATE
+
+static int CurrentState = 0;
+
+int ProcessEvent(int Event){
+
+	xil_printf("Processing event with number: %d\n", Event);
+
+    if (Event<= NUMBER_OF_EVENTS){
+        CurrentState=StateChangeTable[CurrentState][Event];
+    }
+
+
+    xil_printf("Switching to state: %d\n", CurrentState);
+
+    return CurrentState; // we simply return current state if we receive event out of range
+}
+
 
 float convert(float u)
 {
@@ -132,14 +148,22 @@ int main()
 
 	while (i < 1000)
 	{
-		xil_printf("Lost in  main() loop...\r\n");
-		printf("%f\n\r", u);
+		// xil_printf("Lost in  main() loop...\r\n");
+		xil_printf("%f\n\r", u);
 		u = PI(u0, u, Ki, Kp);
 		i++;
 	}
 
+//	while (1) {
+//		xil_printf("System currently in state: %d\n", CurrentState());
+//
+//	}
+
 	cleanup_platform();
 	return 0;
+
+
+	// Old interrupt code, currently discarded
 
 	//	xil_printf("Hello World\n\r");
 	//	return 0;
