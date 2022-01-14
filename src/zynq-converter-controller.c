@@ -4,12 +4,65 @@
 #include <xil_printf.h>
 #include <zynq_registers.h>
 #include <xscugic.h> // Generic interrupt controller (GIC) driver
+#include <xgpio.h>
+
+#define BUTTONS_channel 2
+#define BUTTONS_AXI_ID XPAR_AXI_GPIO_SW_BTN_DEVICE_ID
+
+#define SWITCHES_channel 1
+#define SWITCHES_AXI_ID XPAR_AXI_GPIO_SW_BTN_DEVICE_ID
+
+#define LEDS_channel 1
+#define LEDS_AXI_ID XPAR_AXI_GPIO_LED_DEVICE_ID
+
+#define INTC_DEVICE_ID XPAR_PS7_SCUGIC_0_DEVICE_ID
+#define INT_PushButtons 61
+
+#define LD0 0x1
+#define LD1 0x2
+#define LD2 0x4
+#define LD3 0x8
+
+XGpio BTNS_SWTS, LEDS;
 
 /* The XScuGic driver instance data. The user is required to allocate a
  * variable of this type for every intc device in the system. A pointer
  * to a variable of this type is then passed to the driver API functions.
  */
-XScuGic InterruptControllerInstance; // Interrupt controller instance
+// XScuGic InterruptControllerInstance; // Interrupt controller instance
+
+#define NUMBER_OF_EVENTS 1
+#define GO_TO_NEXT_STATE 0 // Switch to next state
+
+
+#define NUMBER_OF_STATES 3
+#define CONFIGURATION_STATE 0 // Configuration mode
+#define IDLING_STATE 1 // Idling mode
+#define MODULATING_STATE 2 // Modulating mode
+
+int ProcessEvent(int Event);
+
+const char StateChangeTable[NUMBER_OF_STATES][NUMBER_OF_EVENTS]=\
+// event  GO_TO_NEXT_STATE
+		{ IDLING_STATE,     // CONFIGURATION_STATE
+	      MODULATING_STATE,     // IDLING_STATE
+	      CONFIGURATION_STATE,  }; // MODULATING_STATE
+
+static int CurrentState = 0;
+
+int ProcessEvent(int Event){
+
+	xil_printf("Processing event with number: %d\n", Event);
+
+    if (Event<= NUMBER_OF_EVENTS){
+        CurrentState=StateChangeTable[CurrentState][Event];
+    }
+
+
+    xil_printf("Switching to state: %d\n", CurrentState);
+
+    return CurrentState; // we simply return current state if we receive event out of range
+}
 
 
 float convert(float u)
@@ -36,8 +89,7 @@ float convert(float u)
 		0.0404,
 		0.0485,
 		0.0373,
-		0.0539
-	};
+		0.0539};
 
 	static float states[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 	static float oldstates[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
@@ -62,24 +114,68 @@ float convert(float u)
 
 int main()
 {
-//	xil_printf("Hello World\n\r");
-//	return 0;
-	 // AXI GPIO Initialization (LEDs)
-	    AXI_LED_TRI &= ~(0b1111UL); // Direction mode - 0: output
-	    AXI_LED_DATA = 0b1010UL;    // Initialize one led on - one led off
+	int Status;
 
-	    // Connect the Intc to the interrupt subsystem such that interrupts can occur.  This function is application specific.
-	    SetupInterruptSystem(&InterruptControllerInstance);
-	    // Set up  the Ticker timer
-	    SetupUART();
-	    SetupUARTInterrupt(&InterruptControllerInstance);
-	    SetupTimer();
-	    SetupTicker(&InterruptControllerInstance);
+	// Initializes BTNS_SWTS as an XGPIO.
+	Status = XGpio_Initialize(&BTNS_SWTS, BUTTONS_AXI_ID);
+	if (Status != XST_SUCCESS)
+	{
+		xil_printf("Buttons and switches error\n");
+		return XST_FAILURE;
+	}
 
-	    while (1)
-	    {
-	        sleep(1);
-	        xil_printf("Lost in infinite main() loop...\r\n");
-	    }
-	    return 0;
+	Status = XGpio_Initialize(&LEDS, LEDS_AXI_ID);
+	if (Status != XST_SUCCESS)
+	{
+		xil_printf("LEDs error\n");
+		return XST_FAILURE;
+	}
+
+	XGpio_SetDataDirection(&BTNS_SWTS, BUTTONS_channel, 0xF);
+	XGpio_SetDataDirection(&BTNS_SWTS, SWITCHES_channel, 0xF);
+	XGpio_SetDataDirection(&LEDS, LEDS_channel, 0x0);
+
+	// Initializes interruptions.
+	Status = IntcInitFunction(INTC_DEVICE_ID);
+
+	int i = 1;
+	float u0, u, Ki, Kp;
+	u0 = 1.5; //reference voltage
+	u = 0;	  //actual voltage
+	Ki = 0.2;
+	Kp = 0.1;
+	init_platform();
+
+	while (i < 1000)
+	{
+		// xil_printf("Lost in  main() loop...\r\n");
+		xil_printf("%f\n\r", u);
+		u = PI(u0, u, Ki, Kp);
+		i++;
+	}
+
+//	while (1) {
+//		xil_printf("System currently in state: %d\n", CurrentState());
+//
+//	}
+
+	cleanup_platform();
+	return 0;
+
+
+	// Old interrupt code, currently discarded
+
+	//	xil_printf("Hello World\n\r");
+	//	return 0;
+	// AXI GPIO Initialization (LEDs)
+	//	    AXI_LED_TRI &= ~(0b1111UL); // Direction mode - 0: output
+	//	    AXI_LED_DATA = 0b1010UL;    // Initialize one led on - one led off
+	//
+	//	    // Connect the Intc to the interrupt subsystem such that interrupts can occur.  This function is application specific.
+	//	    SetupInterruptSystem(&InterruptControllerInstance);
+	//	    // Set up  the Ticker timer
+	//	    SetupUART();
+	//	    SetupUARTInterrupt(&InterruptControllerInstance);
+	//	    SetupTimer();
+	//	    SetupTicker(&InterruptControllerInstance);
 }

@@ -50,39 +50,20 @@
 #include "platform.h"
 #include "xil_printf.h"
 
+float PI(float y_ref, float y_act, float Ki, float Kp);
+
 // call every x ms
-float PI(float y_ref, float y_act ,float Ki, float Kp)
+float PI(float y_ref, float y_act, float Ki, float Kp)
 {
-	static float u1_old=0;
-	float error_new ,u1_new;
+	static float u1_old = 0;
+	float error_new, u1_new;
 	float u1_max = 1.5;
-	error_new = y_ref-y_act;
-	u1_new= u1_old+Ki* error_new;
-	if (abs(u1_new ) > u1_max) {//
-		u1_new=u1_old;
+	error_new = y_ref - y_act;
+	u1_new = u1_old + Ki * error_new;
+	if (abs(u1_new) > u1_max)
+	{ //
+		u1_new = u1_old;
 	}
-	u1_old=u1_new;
-	return u1_new+Kp*error_new;
-}
-
-
-int main()
-
-{
-	int i = 1;
-	float u0,u,Ki,Kp;
-	u0 = 1.5; //reference voltage
-	u = 0;	 //actual voltage
-	Ki = 0.2;
-	Kp = 0.1;
-    init_platform();
-
-    while (i < 100){
-   		printf("%f\n\r",u);
-   		u = PI(u0,u,Ki,Kp);
-   		i++;
-   		}
-
-    cleanup_platform();
-    return 0;
+	u1_old = u1_new;
+	return u1_new + Kp * error_new;
 }
