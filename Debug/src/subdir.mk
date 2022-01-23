@@ -7,6 +7,7 @@ LD_SRCS += \
 ../src/lscript.ld 
 
 C_SRCS += \
+../src/controller.c \
 ../src/interrupt_example.c \
 ../src/interrupts_buttons.c \
 ../src/pid.c \
@@ -14,6 +15,7 @@ C_SRCS += \
 ../src/zynq-converter-controller.c 
 
 OBJS += \
+./src/controller.o \
 ./src/interrupt_example.o \
 ./src/interrupts_buttons.o \
 ./src/pid.o \
@@ -21,6 +23,7 @@ OBJS += \
 ./src/zynq-converter-controller.o 
 
 C_DEPS += \
+./src/controller.d \
 ./src/interrupt_example.d \
 ./src/interrupts_buttons.d \
 ./src/pid.d \

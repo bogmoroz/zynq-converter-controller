@@ -5,6 +5,7 @@
 #include <zynq_registers.h>
 #include <xscugic.h> // Generic interrupt controller (GIC) driver
 #include <xgpio.h>
+#include <xttcps.h>
 
 #define BUTTONS_channel 2
 #define BUTTONS_AXI_ID XPAR_AXI_GPIO_SW_BTN_DEVICE_ID
@@ -34,36 +35,36 @@ XGpio BTNS_SWTS, LEDS;
 #define NUMBER_OF_EVENTS 1
 #define GO_TO_NEXT_STATE 0 // Switch to next state
 
-
 #define NUMBER_OF_STATES 3
 #define CONFIGURATION_STATE 0 // Configuration mode
-#define IDLING_STATE 1 // Idling mode
-#define MODULATING_STATE 2 // Modulating mode
+#define IDLING_STATE 1		  // Idling mode
+#define MODULATING_STATE 2	  // Modulating mode
 
 int ProcessEvent(int Event);
 
-const char StateChangeTable[NUMBER_OF_STATES][NUMBER_OF_EVENTS]=\
-// event  GO_TO_NEXT_STATE
-		{ IDLING_STATE,     // CONFIGURATION_STATE
-	      MODULATING_STATE,     // IDLING_STATE
-	      CONFIGURATION_STATE,  }; // MODULATING_STATE
+const char StateChangeTable[NUMBER_OF_STATES][NUMBER_OF_EVENTS] = // event  GO_TO_NEXT_STATE
+	{
+		IDLING_STATE,	  // CONFIGURATION_STATE
+		MODULATING_STATE, // IDLING_STATE
+		CONFIGURATION_STATE,
+}; // MODULATING_STATE
 
 static int CurrentState = 0;
 
-int ProcessEvent(int Event){
+int ProcessEvent(int Event)
+{
 
 	xil_printf("Processing event with number: %d\n", Event);
 
-    if (Event<= NUMBER_OF_EVENTS){
-        CurrentState=StateChangeTable[CurrentState][Event];
-    }
+	if (Event <= NUMBER_OF_EVENTS)
+	{
+		CurrentState = StateChangeTable[CurrentState][Event];
+	}
 
+	xil_printf("Switching to state: %d\n", CurrentState);
 
-    xil_printf("Switching to state: %d\n", CurrentState);
-
-    return CurrentState; // we simply return current state if we receive event out of range
+	return CurrentState; // we simply return current state if we receive event out of range
 }
-
 
 float convert(float u)
 {
@@ -112,7 +113,7 @@ float convert(float u)
 	return states[5];
 };
 
-int main()
+void init_button_interrupts()
 {
 	int Status;
 
@@ -137,45 +138,64 @@ int main()
 
 	// Initializes interruptions.
 	Status = IntcInitFunction(INTC_DEVICE_ID);
+}
 
-	int i = 1;
-	float u0, u, Ki, Kp;
-	u0 = 1.5; //reference voltage
-	u = 0;	  //actual voltage
-	Ki = 0.2;
-	Kp = 0.1;
-	init_platform();
+int main()
+{
+	init_button_interrupts();
 
-	while (i < 1000)
+	/* PWM input */
+	// Setup timer
+	TTC0_CLK_CNTRL = (0 << XTTCPS_CLK_CNTRL_PS_VAL_SHIFT) | XTTCPS_CLK_CNTRL_PS_EN_MASK;
+	TTC0_CNT_CNTRL = XTTCPS_CNT_CNTRL_RST_MASK | XTTCPS_CNT_CNTRL_DIS_MASK | XTTCPS_CNT_CNTRL_MATCH_MASK | XTTCPS_CNT_CNTRL_POL_WAVE_MASK;
+	TTC0_MATCH_0 = 0;
+	TTC0_CNT_CNTRL &= ~XTTCPS_CNT_CNTRL_DIS_MASK;
+	//
+	uint16_t match_value = 0;
+	uint8_t state = 0;
+	volatile u32 *ptr_register = NULL;
+	uint16_t rounds = 0;
+	// Initializing PID controller and converter values
+	float u0, u1, u2, Ki, Kp;
+	u0 = 50; //reference voltage - what we want
+	u1 = 0;	 //actual voltage out of the controller
+	u2 = 0;	 // process variable - voltage out of the converter
+	// PID parameters
+	// TODO protect them with semaphores
+	Ki = 0.001;
+	Kp = 0.01;
+
+	while (rounds < 30000)
 	{
-		// xil_printf("Lost in  main() loop...\r\n");
-		xil_printf("%f\n\r", u);
-		u = PI(u0, u, Ki, Kp);
-		i++;
-	}
 
-//	while (1) {
-//		xil_printf("System currently in state: %d\n", CurrentState());
-//
-//	}
+		if (match_value == 0)
+		{
+			switch (state)
+			{
+			case 0:
+				ptr_register = &TTC0_MATCH_0;
+				break;
+			case 1:
+				*ptr_register = match_value++;
+				break;
+			case 2:
+				*ptr_register = match_value--;
+				break;
+			}
+
+			state == 2 ? state = 0 : state++; // change state
+			// Send reference voltage and current voltage to controller
+			u1 = PI(u0, u2, Ki, Kp);
+			u2 = convert(u1);
+			char c[50]; //size of the number
+			sprintf(c, "%f", u2);
+			xil_printf(c);
+			xil_printf("\n");
+		}
+
+		rounds = rounds + 1;
+	}
 
 	cleanup_platform();
 	return 0;
-
-
-	// Old interrupt code, currently discarded
-
-	//	xil_printf("Hello World\n\r");
-	//	return 0;
-	// AXI GPIO Initialization (LEDs)
-	//	    AXI_LED_TRI &= ~(0b1111UL); // Direction mode - 0: output
-	//	    AXI_LED_DATA = 0b1010UL;    // Initialize one led on - one led off
-	//
-	//	    // Connect the Intc to the interrupt subsystem such that interrupts can occur.  This function is application specific.
-	//	    SetupInterruptSystem(&InterruptControllerInstance);
-	//	    // Set up  the Ticker timer
-	//	    SetupUART();
-	//	    SetupUARTInterrupt(&InterruptControllerInstance);
-	//	    SetupTimer();
-	//	    SetupTicker(&InterruptControllerInstance);
 }
