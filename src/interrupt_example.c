@@ -37,13 +37,12 @@ void SetupTimer();
 void SetupInterruptSystem(XScuGic *InterruptControllerInstancePtr);
 static void TickHandler(void);
 
-
 /*
  * This function sets up the interrupt system such that interrupts can occur.
  */
- void SetupInterruptSystem(XScuGic *InterruptControllerInstancePtr)
+void SetupInterruptSystem(XScuGic *InterruptControllerInstancePtr)
 {
-	xil_printf("SetupInterruptSystem() called!!!\r\n");
+    xil_printf("SetupInterruptSystem() called!!!\r\n");
 
     //XScuGic_Config structure contains configuration information for the device
     XScuGic_Config InterruptControllerConfigInstance;                                  // Initialize structure of type XScuGic_Config
@@ -80,7 +79,7 @@ static void TickHandler(void);
  */
 void SetupTimer()
 {
-	xil_printf("SetupTimer() called!!!\r\n");
+    xil_printf("SetupTimer() called!!!\r\n");
 
     TTC0_CNT_CNTRL |= XTTCPS_CNT_CNTRL_DIS_MASK; //Counter Control Register: "Disable the counter"
     // Reset the count control register to it's default value.
@@ -113,7 +112,7 @@ void SetupTimer()
 */
 void SetupUART()
 {
-	xil_printf("SetupUART() called!!!\r\n");
+    xil_printf("SetupUART() called!!!\r\n");
 
     uint32_t r = 0; // Temporary value variable
 
@@ -144,7 +143,7 @@ void SetupUART()
 
 void SetupUARTInterrupt(XScuGic *InterruptControllerInstancePtr)
 {
-	xil_printf("SetupUARTInterrupt() called!!!\r\n");
+    xil_printf("SetupUARTInterrupt() called!!!\r\n");
 
     Xil_ExceptionDisable();
 
@@ -187,7 +186,7 @@ void SetupUARTInterrupt(XScuGic *InterruptControllerInstancePtr)
  */
 void SetupTicker(XScuGic *InterruptControllerInstancePtr)
 {
-	xil_printf("SetupTicker() called!!!\r\n");
+    xil_printf("SetupTicker() called!!!\r\n");
     // Connect to the interrupt controller (pointer to function)
     InterruptControllerInstancePtr->Config->HandlerTable[TTC_TICK_INTR_ID].Handler = (Xil_InterruptHandler)TickHandler;
     // Enable the interrupt for the Timer counter
@@ -208,7 +207,7 @@ static void TickHandler(void)
 {
     // Read the interrupt status to clear the interrupt.
     // TTC0_ISR: Triple Timer Counter (TTC) 0 - Interrupt Status Register (ISR)
-    TTC0_ISR;               // Cleared on read
+    TTC0_ISR; // Cleared on read
     xil_printf("TickHandler() called!!!\r\n");
     AXI_LED_DATA ^= 0b0011; // Toggle (XOR operator (^)) two LEDs
 }
@@ -234,7 +233,7 @@ static void UartIRQHandler(void)
 // Check if UART receive FIFO is not empty and return the new data
 char uart_receive()
 {
-	xil_printf("uart_receive() called!!!\r\n");
+    xil_printf("uart_receive() called!!!\r\n");
     if ((UART_STATUS & XUARTPS_SR_RXEMPTY) == XUARTPS_SR_RXEMPTY)
         return 0;
     return UART_FIFO;
