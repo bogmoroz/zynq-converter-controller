@@ -8,7 +8,7 @@ LD_SRCS += \
 
 C_SRCS += \
 ../src/controller.c \
-../src/interrupt_example.c \
+../src/interrupt_uart.c \
 ../src/interrupts_buttons.c \
 ../src/pid.c \
 ../src/platform.c \
@@ -16,7 +16,7 @@ C_SRCS += \
 
 OBJS += \
 ./src/controller.o \
-./src/interrupt_example.o \
+./src/interrupt_uart.o \
 ./src/interrupts_buttons.o \
 ./src/pid.o \
 ./src/platform.o \
@@ -24,7 +24,7 @@ OBJS += \
 
 C_DEPS += \
 ./src/controller.d \
-./src/interrupt_example.d \
+./src/interrupt_uart.d \
 ./src/interrupts_buttons.d \
 ./src/pid.d \
 ./src/platform.d \

@@ -11,8 +11,6 @@
 #include <xuartps_hw.h>
 #include <xscugic.h>
 
-
-
 #define BUTTONS_channel 2
 #define BUTTONS_AXI_ID XPAR_AXI_GPIO_SW_BTN_DEVICE_ID
 
@@ -31,6 +29,8 @@
 #define LD3 0x8
 
 XGpio BTNS_SWTS, LEDS;
+
+XScuGic InterruptControllerInstance; // Interrupt controller instance
 
 /* The XScuGic driver instance data. The user is required to allocate a
  * variable of this type for every intc device in the system. A pointer
@@ -70,7 +70,6 @@ void uart_send(char c)
 //#define BUFFER_SIZE 20
 //static char str[] = "\tHello World\r";
 
-
 // Send string (character array) through UART interface
 void uart_send_string(char str[20])
 {
@@ -81,6 +80,7 @@ void uart_send_string(char str[20])
 		ptr++;
 	}
 }
+
 // Check if UART receive FIFO is not empty and return the new data
 char uart_receive()
 {
@@ -88,6 +88,7 @@ char uart_receive()
 		return 0;
 	return UART_FIFO;
 }
+
 // Set LED outputs based on character value '1', '2', '3', '4'
 void set_leds(uint8_t input)
 {
@@ -171,7 +172,7 @@ float convert(float u)
 
 void init_button_interrupts()
 {
-	printf("init_button_interrupts");
+	xil_printf("init_button_interrupts");
 	int Status;
 
 	// Initializes BTNS_SWTS as an XGPIO.
@@ -201,32 +202,6 @@ void init_button_interrupts()
 	Status = IntcInitFunction(INTC_DEVICE_ID);
 }
 
-void setup_uart_comms() {
-	uint32_t r = 0;			// Temporary value variable
-								// Initialize AXI GPIO (LEDS LD3..0 - AXI_LED_DATA[3:0])
-	AXI_LED_TRI &= ~0b1111; // Direction Mode (0 = Output)
-	AXI_LED_DATA = 0;		// Output value
-	r = UART_CTRL;
-	r &= ~(XUARTPS_CR_TX_EN | XUARTPS_CR_RX_EN); // Clear Tx & Rx Enable
-	r |= XUARTPS_CR_RX_DIS | XUARTPS_CR_TX_DIS;	 // Tx & Rx Disable
-	UART_CTRL = r;
-	UART_MODE = 0;
-	UART_MODE &= ~XUARTPS_MR_CLKSEL;					// Clear "Input clock selection" - 0: clock source is uart_ref_clk
-	UART_MODE |= XUARTPS_MR_CHARLEN_8_BIT;				// Set "8 bits data"
-	UART_MODE |= XUARTPS_MR_PARITY_NONE;				// Set "No parity mode"
-	UART_MODE |= XUARTPS_MR_STOPMODE_1_BIT;				// Set "1 stop bit"
-	UART_MODE |= XUARTPS_MR_CHMODE_NORM;				// Set "Normal mode"
-														// baud_rate = sel_clk / (CD * (BDIV + 1) (ref: UG585 - TRM - Ch. 19 UART)
-	UART_BAUD_DIV = 6;									// ("BDIV")
-	UART_BAUD_GEN = 124;								// ("CD")
-														// Baud Rate = 100Mhz / (124 * (6 + 1)) = 115200 bps
-	UART_CTRL |= (XUARTPS_CR_TXRST | XUARTPS_CR_RXRST); // TX & RX logic reset
-	r = UART_CTRL;
-	r |= XUARTPS_CR_RX_EN | XUARTPS_CR_TX_EN;	   // Set TX & RX enabled
-	r &= ~(XUARTPS_CR_RX_DIS | XUARTPS_CR_TX_DIS); // Clear TX & RX disabled
-	UART_CTRL = r;
-}
-
 int main()
 {
 	xil_printf("Line of main method: %d\n", 232);
@@ -253,24 +228,24 @@ int main()
 	Ki = 0.001;
 	Kp = 0.01;
 
-
-setup_uart_comms();
+	//
+	//setup_uart_comms();
 
 	while (1)
 	{
 		// Count to big number before exiting for loop - delay loop
-		for (uint32_t i = 1; i < (1 << 20); i++)
-		{
-			char input = uart_receive(); // polling UART receive buffer
-			if (input)
-				set_leds(input); // if new data received call set_leds()
-		}
-//		static char c = '0';
-//		uart_send(c++); // Send and increment character variable c
-//		// If incremented over 'Z', initialize to '0' (ref: see ASCII character table)
-//		if (c > 'Z')
-//			c = '0';
-//		uart_send_string(str); // Send character array variable str
+		//		for (uint32_t i = 1; i < (1 << 20); i++)
+		//		{
+		//			char input = uart_receive(); // polling UART receive buffer
+		//			if (input)
+		//				set_leds(input); // if new data received call set_leds()
+		//		}
+		//		static char c = '0';
+		//		uart_send(c++); // Send and increment character variable c
+		//		// If incremented over 'Z', initialize to '0' (ref: see ASCII character table)
+		//		if (c > 'Z')
+		//			c = '0';
+		//		uart_send_string(str); // Send character array variable str
 	}
 
 	while (1)
