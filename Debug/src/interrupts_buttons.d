@@ -19,7 +19,11 @@ src/interrupts_buttons.o src/interrupts_buttons.o: \
  ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xplatform_info.h \
  ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xscugic.h \
  ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xscugic_hw.h \
- ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xil_exception.h
+ ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xil_exception.h \
+ ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xil_printf.h \
+ ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xuartps_hw.h \
+ D:\XilinxWokrspace\zybo_platform/zynq_registers.h \
+ ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xil_types.h
 
 ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xparameters.h:
 
@@ -60,3 +64,11 @@ src/interrupts_buttons.o src/interrupts_buttons.o: \
 ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xscugic_hw.h:
 
 ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xil_exception.h:
+
+../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xil_printf.h:
+
+../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xuartps_hw.h:
+
+D:\XilinxWokrspace\zybo_platform/zynq_registers.h:
+
+../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xil_types.h:
