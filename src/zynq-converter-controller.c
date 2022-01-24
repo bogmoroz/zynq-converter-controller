@@ -11,6 +11,8 @@
 #include <xuartps_hw.h>
 #include <xscugic.h>
 
+#define getName(var)  #var
+
 #define BUTTONS_channel 2
 #define BUTTONS_AXI_ID XPAR_AXI_GPIO_SW_BTN_DEVICE_ID
 
@@ -38,24 +40,58 @@ XScuGic InterruptControllerInstance; // Interrupt controller instance
  */
 // XScuGic InterruptControllerInstance; // Interrupt controller instance
 
-#define NUMBER_OF_EVENTS 1
+#define NUMBER_OF_EVENTS 2
 #define GO_TO_NEXT_STATE 0 // Switch to next state
+#define GO_TO_NEXT_K 1 // Switch to next state
 
-#define NUMBER_OF_STATES 3
-#define CONFIGURATION_STATE 0 // Configuration mode
-#define IDLING_STATE 1		  // Idling mode
-#define MODULATING_STATE 2	  // Modulating mode
+#define NUMBER_OF_STATES 4
+#define CONFIGURATION_STATE_KI 0 // Configuration mode for Ki
+#define CONFIGURATION_STATE_KP 1 // Configuration mode for Kp
+#define IDLING_STATE 2		  // Idling mode
+#define MODULATING_STATE 3	  // Modulating mode
 
 int ProcessEvent(int Event);
 
-const char StateChangeTable[NUMBER_OF_STATES][NUMBER_OF_EVENTS] = // event  GO_TO_NEXT_STATE
+const char StateChangeTable[NUMBER_OF_STATES][NUMBER_OF_EVENTS] =
+// event  GO_TO_NEXT_STATE    GO_TO_NEXT_K
 	{
-		IDLING_STATE,	  // CONFIGURATION_STATE
-		MODULATING_STATE, // IDLING_STATE
-		CONFIGURATION_STATE,
-}; // MODULATING_STATE
+		IDLING_STATE,	  			CONFIGURATION_STATE_KP,	// CONFIGURATION_STATE_KI
+		IDLING_STATE,	  			CONFIGURATION_STATE_KI,	// CONFIGURATION_STATE_KP
+		MODULATING_STATE, 			MODULATING_STATE,	// IDLING_STATE
+		CONFIGURATION_STATE_KI,		MODULATING_STATE };          // MODULATING_STATE
+
 
 static int CurrentState = 0;
+
+/*
+* This function initializes the UART - serial connection to PC (from Exercise 4)
+*/
+void SetupUART()
+{
+	uint32_t r = 0;			// Temporary value variable
+							// Initialize AXI GPIO (LEDS LD3..0 - AXI_LED_DATA[3:0])
+	AXI_LED_TRI &= ~0b1111; // Direction Mode (0 = Output)
+	AXI_LED_DATA = 0;		// Output value
+	r = UART_CTRL;
+	r &= ~(XUARTPS_CR_TX_EN | XUARTPS_CR_RX_EN); // Clear Tx & Rx Enable
+	r |= XUARTPS_CR_RX_DIS | XUARTPS_CR_TX_DIS;	 // Tx & Rx Disable
+	UART_CTRL = r;
+	UART_MODE = 0;
+	UART_MODE &= ~XUARTPS_MR_CLKSEL;					// Clear "Input clock selection" - 0: clock source is uart_ref_clk
+	UART_MODE |= XUARTPS_MR_CHARLEN_8_BIT;				// Set "8 bits data"
+	UART_MODE |= XUARTPS_MR_PARITY_NONE;				// Set "No parity mode"
+	UART_MODE |= XUARTPS_MR_STOPMODE_1_BIT;				// Set "1 stop bit"
+	UART_MODE |= XUARTPS_MR_CHMODE_NORM;				// Set "Normal mode"
+														// baud_rate = sel_clk / (CD * (BDIV + 1) (ref: UG585 - TRM - Ch. 19 UART)
+	UART_BAUD_DIV = 6;									// ("BDIV")
+	UART_BAUD_GEN = 124;								// ("CD")
+														// Baud Rate = 100Mhz / (124 * (6 + 1)) = 115200 bps
+	UART_CTRL |= (XUARTPS_CR_TXRST | XUARTPS_CR_RXRST); // TX & RX logic reset
+	r = UART_CTRL;
+	r |= XUARTPS_CR_RX_EN | XUARTPS_CR_TX_EN;	   // Set TX & RX enabled
+	r &= ~(XUARTPS_CR_RX_DIS | XUARTPS_CR_TX_DIS); // Clear TX & RX disabled
+	UART_CTRL = r;
+}
 
 // Send one character through UART interface
 void uart_send(char c)
@@ -118,7 +154,22 @@ int ProcessEvent(int Event)
 		CurrentState = StateChangeTable[CurrentState][Event];
 	}
 
-	xil_printf("Switching to state: %d\n", CurrentState);
+	if (CurrentState == 0) {
+		xil_printf("Switching to state: %s\n", "CONFIGURATION_STATE_KI");
+	}
+
+	if (CurrentState == 1) {
+		xil_printf("Switching to state: %s\n", "CONFIGURATION_STATE_KP");
+	}
+
+	if (CurrentState == 2) {
+		xil_printf("Switching to state: %s\n", "IDLING_STATE");
+	}
+
+	if (CurrentState == 3) {
+		xil_printf("Switching to state: %s\n", "MODULATING_STATE");
+	}
+
 
 	return CurrentState; // we simply return current state if we receive event out of range
 }
@@ -206,6 +257,7 @@ int main()
 {
 	xil_printf("Line of main method: %d\n", 232);
 	init_button_interrupts();
+	SetupUART();
 
 	/* PWM input */
 	// Setup timer
@@ -228,33 +280,21 @@ int main()
 	Ki = 0.001;
 	Kp = 0.01;
 
-	//
-	//setup_uart_comms();
+//	while (1)
+//	{
+//
+//
+//
+//	}
 
-	while (1)
+	while (rounds < 300000)
 	{
-		// Count to big number before exiting for loop - delay loop
-		//		for (uint32_t i = 1; i < (1 << 20); i++)
-		//		{
-		//			char input = uart_receive(); // polling UART receive buffer
-		//			if (input)
-		//				set_leds(input); // if new data received call set_leds()
-		//		}
-		//		static char c = '0';
-		//		uart_send(c++); // Send and increment character variable c
-		//		// If incremented over 'Z', initialize to '0' (ref: see ASCII character table)
-		//		if (c > 'Z')
-		//			c = '0';
-		//		uart_send_string(str); // Send character array variable str
-	}
 
-	while (1)
-	{
-		// Notthing
-	}
-
-	while (rounds < 30000)
-	{
+		char input = uart_receive(); // polling UART receive buffer
+		if (input) {
+			xil_printf("UART console requesting control with command: %s\n", input);
+			set_leds(input); // if new data received call set_leds()
+		}
 
 		if (match_value == 0)
 		{
