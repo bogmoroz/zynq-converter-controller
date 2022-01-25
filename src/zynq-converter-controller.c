@@ -355,7 +355,7 @@ int main()
 			}
 		if (match_value == 0)
 		{
-			state == 2 ? state = 0 : state++; // change state
+			state == 10 ? state = 0 : state++; // change state
 			// Send reference voltage and current voltage to controller
 			u1 = PI(u0, u2, Ki, Kp); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
 			u2 = convert(u1); // convert the input from PI controller to output voltage u2
