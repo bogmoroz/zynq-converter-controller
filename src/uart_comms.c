@@ -11,7 +11,7 @@
 /*
 * This function initializes the UART - serial connection to PC (from Exercise 4)
 */
-void SetupUART()
+void setupUART()
 {
 	uint32_t r = 0;			// Temporary value variable
 							// Initialize AXI GPIO (LEDS LD3..0 - AXI_LED_DATA[3:0])
@@ -39,7 +39,7 @@ void SetupUART()
 }
 
 // Send one character through UART interface
-void uart_send(char c)
+void uartSend(char c)
 {
 	while (UART_STATUS & XUARTPS_SR_TNFUL)
 		;
@@ -50,18 +50,18 @@ void uart_send(char c)
 
 
 // Send string (character array) through UART interface
-void uart_send_string(char str[20])
+void uartSendString(char str[20])
 {
 	char *ptr = str;
 	while (*ptr != '\0')
 	{
-		uart_send(*ptr);
+		uartSend(*ptr);
 		ptr++;
 	}
 }
 
 // Check if UART receive FIFO is not empty and return the new data
-char uart_receive()
+char uartReceive()
 {
 	if ((UART_STATUS & XUARTPS_SR_RXEMPTY) == XUARTPS_SR_RXEMPTY)
 		return 0;

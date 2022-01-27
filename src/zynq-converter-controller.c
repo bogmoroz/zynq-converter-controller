@@ -56,16 +56,49 @@ XScuGic InterruptControllerInstance; // Interrupt controller instance
 
 int ProcessEvent(int Event);
 
+static float Ki = 0.001;
+static float Kp = 0.01;
+static int voltageSetPoint = 50;
+
+void setKi(float n)
+{
+	Ki = n;
+}
+
+float getKi(void)
+{
+	return Ki;
+}
+
+void setKp(float n)
+{
+	Kp = n;
+}
+
+float getKp(void)
+{
+	return Kp;
+}
+
+void setVoltageSetPoint(int n)
+{
+	voltageSetPoint = n;
+}
+
+int getVoltageSetPoint(void)
+{
+	return voltageSetPoint;
+}
+
 const char StateChangeTable[NUMBER_OF_STATES][NUMBER_OF_EVENTS] =
 	// event  GO_TO_NEXT_STATE    GO_TO_NEXT_K
 	{
 		IDLING_STATE, CONFIGURATION_STATE_KP,	   // CONFIGURATION_STATE_KI
 		IDLING_STATE, CONFIGURATION_STATE_KI,	   // CONFIGURATION_STATE_KP
-		MODULATING_STATE, MODULATING_STATE,		   // IDLING_STATE
+		MODULATING_STATE, IDLING_STATE,			   // IDLING_STATE
 		CONFIGURATION_STATE_KI, MODULATING_STATE}; // MODULATING_STATE
 
 static int CurrentState = 0;
-
 
 // Set LED outputs based on character value '1', '2', '3', '4'
 void set_leds(uint8_t input)
@@ -119,54 +152,54 @@ int ProcessEvent(int Event)
 	return CurrentState; // we simply return current state if we receive event out of range
 }
 
-/* Converter model */
-
-float convert(float u)
+int ProcessIncrementRequest()
 {
-	unsigned int i, j;
-	static const float A[6][6] = {
-		{0.9652, -0.0172, 0.0057, -0.0058, 0.0052, -0.0251}, /* row 1 */
-
-		{0.7732, 0.1252, 0.2315, 0.07, 0.1282, 0.7754}, /* row 2 */
-
-		{0.8278, -0.7522, -0.0956, 0.3299, -0.4855, 0.3915}, /* row 3 */
-
-		{0.9948, 0.2655, -0.3848, 0.4212, 0.3927, 0.2899}, /* row 4 */
-
-		{0.7648, -0.4165, -0.4855, -0.3366, -0.0986, 0.7281}, /* row 5 */
-
-		{1.1056, 0.7587, 0.1179, 0.0748, -0.2192, 0.1491} /* row 6 */
-
-	};
-
-	static const float B[6] = {
-		0.0471,
-		0.0377,
-		0.0404,
-		0.0485,
-		0.0373,
-		0.0539};
-
-	static float states[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-	static float oldstates[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-
-	for (i = 0; i < 6; i++)
+	switch (CurrentState)
 	{
-		states[i] = 0.0;
-		for (j = 0; j < 6; j++)
-		{
-			states[i] = states[i] + A[i][j] * oldstates[j];
-		}
-		states[i] = states[i] + B[i] * u;
+	case CONFIGURATION_STATE_KP:
+		// increment Kp
+		setKp(getKp() + 0.01);
+		char outputStringKp[50];
+		sprintf(outputStringKp, "%f", getKp());
+		xil_printf(outputStringKp);
+		xil_printf("\n");
+		return;
+	case CONFIGURATION_STATE_KI:
+		// increment Ki
+		setKi(getKi() + 0.01);
+		char outputStringKi[50];
+		sprintf(outputStringKi, "%f", getKi());
+		xil_printf(outputStringKi);
+		xil_printf("\n");
+		return;
+	case MODULATING_STATE:
+		// increment voltage set point
+		setVoltageSetPoint(getVoltageSetPoint() + 1);
+		char outputStringVoltage[50];
+		sprintf(outputStringVoltage, "%d", getVoltageSetPoint());
+		xil_printf(outputStringVoltage);
+		xil_printf("\n");
+		return;
+	default:
+		return;
 	}
+}
 
-	for (i = 0; i < 6; i++)
-	{
-		oldstates[i] = states[i];
-	}
+void printFloat(float value)
+{
+	char outputString[50];
+	sprintf(outputString, "%f", value);
+	xil_printf(outputString);
+	xil_printf("\n");
+}
 
-	return states[5];
-};
+void printInt(int value)
+{
+	char outputString[50];
+	sprintf(outputString, "%d", value);
+	xil_printf(outputString);
+	xil_printf("\n");
+}
 
 /* Semaphores */
 //
@@ -194,11 +227,10 @@ float convert(float u)
 //	return s;
 //}
 
-
 int main()
 {
-	init_button_interrupts();
-	SetupUART();
+	initButtonInterrupts();
+	setupUART();
 	setupTimersAndRGBLed();
 
 	uint16_t match_value = 0;
@@ -208,9 +240,9 @@ int main()
 	// Initializing PID controller and converter values
 	float u0, u1, u2, Ki, Kp;
 	uint8_t s = 0;
-	u0 = 50; //reference voltage - what we want
-	u1 = 0;	 //actual voltage out of the controller
-	u2 = 0;	 // process variable - voltage out of the converter
+	u0 = getVoltageSetPoint(); //reference voltage - what we want
+	u1 = 0;					   //actual voltage out of the controller
+	u2 = 0;					   // process variable - voltage out of the converter
 	// PID parameters
 	// TODO protect them with semaphores
 	Ki = 0.001;
@@ -218,12 +250,14 @@ int main()
 
 	while (rounds < 30000)
 	{
-		char input = uart_receive(); // polling UART receive buffer
+		char input = uartReceive(); // polling UART receive buffer
 		if (input)
 		{
-			uart_send_string("UART console requesting control with command:\n");
-			uart_send_string(input);
-			uart_send_string("\n");
+			uartSendString("UART console requesting control with command:\n");
+			char c[50]; //size of the number
+			sprintf(c, "%s", input);
+			uartSendString(c);
+			uartSendString("\n");
 			set_leds(input); // if new data received call set_leds()
 		}
 
@@ -274,9 +308,9 @@ int main()
 			u1 = PI(u0, u2, Ki, Kp); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
 			u2 = convert(u1);		 // convert the input from PI controller to output voltage u2
 			char c[50];				 //size of the number
-			// sprintf(c, "%f", u2);
-//			xil_printf(c);
-//			xil_printf("\n");
+			sprintf(c, "%f", u2);
+			//			xil_printf(c);
+			//			xil_printf("\n");
 			rounds = rounds + 1;
 		}
 	}

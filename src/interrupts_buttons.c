@@ -58,7 +58,7 @@ void PushButtons_Intr_Handler(void *data);
 
 /* Button interrupt */
 
-void init_button_interrupts()
+void initButtonInterrupts()
 {
 	xil_printf("init_button_interrupts");
 	int Status;
@@ -169,6 +169,7 @@ void PushButtons_Intr_Handler(void *data)
 		break;
 	case LD2:
 		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD2); // LD2.
+		ProcessIncrementRequest();
 		break;
 	case LD3:
 		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD3); // LD3.

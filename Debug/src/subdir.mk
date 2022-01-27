@@ -8,6 +8,7 @@ LD_SRCS += \
 
 C_SRCS += \
 ../src/controller.c \
+../src/converter.c \
 ../src/interrupts_buttons.c \
 ../src/led_drivers.c \
 ../src/pid.c \
@@ -17,6 +18,7 @@ C_SRCS += \
 
 OBJS += \
 ./src/controller.o \
+./src/converter.o \
 ./src/interrupts_buttons.o \
 ./src/led_drivers.o \
 ./src/pid.o \
@@ -26,6 +28,7 @@ OBJS += \
 
 C_DEPS += \
 ./src/controller.d \
+./src/converter.d \
 ./src/interrupts_buttons.d \
 ./src/led_drivers.d \
 ./src/pid.d \
