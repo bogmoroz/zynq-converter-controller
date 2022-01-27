@@ -55,6 +55,7 @@ float PI(float y_ref, float y_act, float Ki, float Kp);
 // call every x ms
 float PI(float y_ref, float y_act, float Ki, float Kp)
 {
+	xil_printf("y_ref: %f\n", y_ref);
 	static float u1_old = 0;
 	float error_new, u1_new;
 	float u1_max = 1.5;

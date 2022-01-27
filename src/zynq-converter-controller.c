@@ -57,9 +57,9 @@ XScuGic InterruptControllerInstance; // Interrupt controller instance
 
 int ProcessEvent(int Event);
 
-static float Ki = 0.001;
-static float Kp = 0.01;
-static int voltageSetPoint = 50;
+float Ki = 0.001;
+float Kp = 0.01;
+int voltageSetPoint = 50;
 
 void setKi(float n)
 {
@@ -249,13 +249,13 @@ int main()
 	// Initializing PID controller and converter values
 	float u0, u1, u2, Ki, Kp;
 	uint8_t s = 0;
-	u0 = getVoltageSetPoint(); //reference voltage - what we want
+	// u0 = getVoltageSetPoint(); //reference voltage - what we want
 	u1 = 0;					   //actual voltage out of the controller
 	u2 = 0;					   // process variable - voltage out of the converter
 	// PID parameters
 	// TODO protect them with semaphores
-	Ki = 0.001;
-	Kp = 0.01;
+	//Ki = 0.001;
+	//Kp = 0.01;
 
 	while (rounds < 30000)
 	{
@@ -314,12 +314,12 @@ int main()
 		{
 			state == 10 ? state = 0 : state++; // change state
 			// Send reference voltage and current voltage to controller
-			u1 = PI(u0, u2, Ki, Kp); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
+			u1 = PI(getVoltageSetPoint(), u2, getKi(), getKp()); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
 			u2 = convert(u1);		 // convert the input from PI controller to output voltage u2
 			char c[50];				 //size of the number
 			sprintf(c, "%f", u2);
-			//			xil_printf(c);
-			//			xil_printf("\n");
+			xil_printf(c);
+			xil_printf("\n");
 			rounds = rounds + 1;
 		}
 	}
