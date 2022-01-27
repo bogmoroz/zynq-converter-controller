@@ -10,6 +10,10 @@
 #include <xparameters.h>
 #include <xuartps_hw.h>
 #include <xscugic.h>
+#include <xil_exception.h>
+
+#define ENTER_CRITICAL Xil_ExceptionDisable() // Disable Interrupts
+#define EXIT_CRITICAL Xil_ExceptionEnable() // Enable Interrupts
 
 #define getName(var)  #var
 
@@ -174,6 +178,8 @@ int ProcessEvent(int Event)
 	return CurrentState; // we simply return current state if we receive event out of range
 }
 
+/* Converter model */
+
 float convert(float u)
 {
 	unsigned int i, j;
@@ -221,6 +227,30 @@ float convert(float u)
 	return states[5];
 };
 
+/* Semaphores */
+
+int AcquireSemaphore(void){
+	BOOL check=TRUE;
+	while(check)
+	{
+		while (s); // wait for zero
+		Xil_ExceptionDisable(); // Disable interrupts during semaphore access
+		if(s==FALSE) // check if value of s has changed during execution of last 2 lines
+		{
+			s=TRUE; // Activate semaphore
+			check=FALSE; // Leave loop
+		};
+	Xil_ExceptionEnable(); // Enable interrupts after semaphore has been accessed
+	}
+	return s;
+}
+int ReleaseSemaphora(void){
+	s=0;
+	return s; 
+}
+
+/* Button interrupt */
+
 void init_button_interrupts()
 {
 	xil_printf("init_button_interrupts");
@@ -260,11 +290,19 @@ int main()
 	SetupUART();
 
 	/* PWM input */
-	// Setup timer
+	// Setup timer and RBG Led ()
 	TTC0_CLK_CNTRL = (0 << XTTCPS_CLK_CNTRL_PS_VAL_SHIFT) | XTTCPS_CLK_CNTRL_PS_EN_MASK;
+	TTC0_CLK_CNTRL2 = (0 << XTTCPS_CLK_CNTRL_PS_VAL_SHIFT) | XTTCPS_CLK_CNTRL_PS_EN_MASK;
+	TTC0_CLK_CNTRL3 = (0 << XTTCPS_CLK_CNTRL_PS_VAL_SHIFT) | XTTCPS_CLK_CNTRL_PS_EN_MASK;
 	TTC0_CNT_CNTRL = XTTCPS_CNT_CNTRL_RST_MASK | XTTCPS_CNT_CNTRL_DIS_MASK | XTTCPS_CNT_CNTRL_MATCH_MASK | XTTCPS_CNT_CNTRL_POL_WAVE_MASK;
+	TTC0_CNT_CNTRL2 = XTTCPS_CNT_CNTRL_RST_MASK | XTTCPS_CNT_CNTRL_DIS_MASK | XTTCPS_CNT_CNTRL_MATCH_MASK | XTTCPS_CNT_CNTRL_POL_WAVE_MASK;
+	TTC0_CNT_CNTRL3 = XTTCPS_CNT_CNTRL_RST_MASK | XTTCPS_CNT_CNTRL_DIS_MASK | XTTCPS_CNT_CNTRL_MATCH_MASK | XTTCPS_CNT_CNTRL_POL_WAVE_MASK;
 	TTC0_MATCH_0 = 0;
+	TTC0_MATCH_1_COUNTER_2 = 0;
+	TTC0_MATCH_1_COUNTER_3 = 0;
 	TTC0_CNT_CNTRL &= ~XTTCPS_CNT_CNTRL_DIS_MASK;
+	TTC0_CNT_CNTRL2 &= ~XTTCPS_CNT_CNTRL_DIS_MASK;
+	TTC0_CNT_CNTRL3 &= ~XTTCPS_CNT_CNTRL_DIS_MASK;
 	//
 	uint16_t match_value = 0;
 	uint8_t state = 0;
@@ -272,6 +310,7 @@ int main()
 	uint16_t rounds = 0;
 	// Initializing PID controller and converter values
 	float u0, u1, u2, Ki, Kp;
+	uint8_t s = 0;
 	u0 = 50; //reference voltage - what we want
 	u1 = 0;	 //actual voltage out of the controller
 	u2 = 0;	 // process variable - voltage out of the converter
@@ -287,7 +326,7 @@ int main()
 //
 //	}
 
-	while (rounds < 300000)
+	while (rounds < 30000)
 	{
 
 		char input = uart_receive(); // polling UART receive buffer
@@ -296,32 +335,38 @@ int main()
 			set_leds(input); // if new data received call set_leds()
 		}
 
-		if (match_value == 0)
-		{
+		
 			switch (state)
 			{
-			case 0:
-				ptr_register = &TTC0_MATCH_0;
-				break;
-			case 1:
-				*ptr_register = match_value++;
-				break;
-			case 2:
-				*ptr_register = match_value--;
-				break;
-			}
+			case  0:  ptr_register = &TTC0_MATCH_0; 			break; // lets 
+			case  1: *ptr_register = match_value++;	            break; 
+			case  2: *ptr_register = match_value--;	            break;
 
-			state == 2 ? state = 0 : state++; // change state
+			case  3:  ptr_register = &TTC0_MATCH_1_COUNTER_2; 	break; // get
+			case  4: *ptr_register = match_value++;	            break;
+			case  5: *ptr_register = match_value--;	            break;
+
+			case  6:  ptr_register = &TTC0_MATCH_1_COUNTER_3;	break; // the party
+			case  7: *ptr_register = match_value++;				break;
+			case  8: *ptr_register = match_value--;				break;
+
+			case  9: TTC0_MATCH_0 = TTC0_MATCH_1_COUNTER_2 = TTC0_MATCH_1_COUNTER_3 = match_value++; break; // started
+			case 10: TTC0_MATCH_0 = TTC0_MATCH_1_COUNTER_2 = TTC0_MATCH_1_COUNTER_3 = match_value--; break;
+			}
+		if (match_value == 0)
+		{
+			state == 10 ? state = 0 : state++; // change state
 			// Send reference voltage and current voltage to controller
-			u1 = PI(u0, u2, Ki, Kp);
-			u2 = convert(u1);
+			u1 = PI(u0, u2, Ki, Kp); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
+			u2 = convert(u1); // convert the input from PI controller to output voltage u2
 			char c[50]; //size of the number
 			sprintf(c, "%f", u2);
 			xil_printf(c);
 			xil_printf("\n");
+			rounds = rounds + 1;
 		}
 
-		rounds = rounds + 1;
+		
 	}
 
 	cleanup_platform();
