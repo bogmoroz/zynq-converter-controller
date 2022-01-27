@@ -55,11 +55,11 @@ XScuGic InterruptControllerInstance; // Interrupt controller instance
 #define IDLING_STATE 2			 // Idling mode
 #define MODULATING_STATE 3		 // Modulating mode
 
-int ProcessEvent(int Event);
+// int ProcessEvent();
 
 float Ki = 0.001;
 float Kp = 0.01;
-float voltageSetPoint = 50;
+float voltageSetPoint = 50.0;
 
 void setKi(float n)
 {
@@ -101,6 +101,33 @@ const char StateChangeTable[NUMBER_OF_STATES][NUMBER_OF_EVENTS] =
 
 static int CurrentState = 0;
 
+void setCurrentState(int n)
+{
+	CurrentState = n;
+	printCurrentState();
+	//	switch(CurrentState) {
+	//	case CONFIGURATION_STATE_KI:
+	//		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD0);
+	//		return;
+	//	case CONFIGURATION_STATE_KP:
+	//			XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD1);
+	//			return;
+	//	case IDLING_STATE:
+	//			XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD2);
+	//			return;
+	//	case MODULATING_STATE:
+	//			XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD3);
+	//			return;
+	//	default:
+	//		return;
+	//	}
+}
+
+int getCurrentState()
+{
+	return CurrentState;
+}
+
 // Set LED outputs based on character value '1', '2', '3', '4'
 void set_leds(uint8_t input)
 {
@@ -127,9 +154,14 @@ int ProcessEvent(int Event)
 
 	if (Event <= NUMBER_OF_EVENTS)
 	{
-		CurrentState = StateChangeTable[CurrentState][Event];
+		setCurrentState(StateChangeTable[CurrentState][Event]);
 	}
 
+	return CurrentState; // we simply return current state if we receive event out of range
+}
+
+void printCurrentState()
+{
 	if (CurrentState == 0)
 	{
 		xil_printf("Switching to state: %s\n", "CONFIGURATION_STATE_KI");
@@ -149,8 +181,6 @@ int ProcessEvent(int Event)
 	{
 		xil_printf("Switching to state: %s\n", "MODULATING_STATE");
 	}
-
-	return CurrentState; // we simply return current state if we receive event out of range
 }
 
 int processIncrementDecrementRequest(int command)
@@ -159,9 +189,12 @@ int processIncrementDecrementRequest(int command)
 	{
 	case CONFIGURATION_STATE_KP:
 		// increment Kp
-		if (command == 1) {
+		if (command == 1)
+		{
 			setKp(getKp() + 0.01);
-		} else if (command == 0) {
+		}
+		else if (command == 0)
+		{
 			setKp(getKp() - 0.01);
 		}
 		char outputStringKp[50];
@@ -171,9 +204,12 @@ int processIncrementDecrementRequest(int command)
 		return;
 	case CONFIGURATION_STATE_KI:
 		// increment Ki
-		if (command == 1) {
+		if (command == 1)
+		{
 			setKi(getKi() + 0.001);
-		} else if (command == 0) {
+		}
+		else if (command == 0)
+		{
 			setKi(getKi() - 0.001);
 		}
 		char outputStringKi[50];
@@ -183,9 +219,12 @@ int processIncrementDecrementRequest(int command)
 		return;
 	case MODULATING_STATE:
 		// increment voltage set point
-		if (command == 1) {
+		if (command == 1)
+		{
 			setVoltageSetPoint(getVoltageSetPoint() + 1);
-		} else if (command == 0) {
+		}
+		else if (command == 0)
+		{
 			setVoltageSetPoint(getVoltageSetPoint() - 1);
 		}
 
@@ -311,9 +350,10 @@ float convert(float u)
 	return states[5];
 };
 
-
 int main()
 {
+	// setCurrentState(CONFIGURATION_STATE_KI);
+
 	initButtonInterrupts();
 	setupUART();
 	setupTimersAndRGBLed();
@@ -325,23 +365,46 @@ int main()
 	// Initializing PID controller and converter values
 	float u0, u1, u2, Ki, Kp;
 	uint8_t s = 0;
-	u1 = 0;					   //actual voltage out of the controller
-	u2 = 0;					   // process variable - voltage out of the converter
+	u1 = 0; //actual voltage out of the controller
+	u2 = 0; // process variable - voltage out of the converter
 
-
-
-	while (rounds < 30000)
+	while (rounds < 300000)
 	{
-		char input = uartReceive(); // polling UART receive buffer
-		if (input)
-		{
-			uartSendString("UART console requesting control with command:\n");
-			char c[50]; //size of the number
-			sprintf(c, "%s", input);
-			uartSendString(c);
-			uartSendString("\n");
-			set_leds(input); // if new data received call set_leds()
-		}
+
+		//		int index = 0;
+		//		char input = '1';
+		//		char rx_buf[30];
+		//		while (input != '\r')
+		//		{
+		//			input = uartReceive();
+		//			if (input)
+		//			{
+		//				rx_buf[index] = input;
+		//				index++;
+		//			}
+		//		}
+		//
+		//		//		xil_printf("%d\n", strcmp("CONFIGURATION_STATE_KI", "CONFIGURATION_STATE_KI"));
+		//		//		xil_printf("%d\n", strncmp("CONFIGURATION_STATE_KI", "CONFIGURATION_STATE_KIfadsfasf", index));
+		//		//		xil_printf("%d\n",index);
+		//		//		xil_printf("%s\n",rx_buf);
+		//
+		//		if (strncmp("CONFIGURATION_STATE_KI", rx_buf, index - 1) == 0)
+		//		{
+		//			setCurrentState(CONFIGURATION_STATE_KI);
+		//		}
+		//		else if (strncmp("CONFIGURATION_STATE_KP", rx_buf, index - 1) == 0)
+		//		{
+		//			setCurrentState(CONFIGURATION_STATE_KP);
+		//		}
+		//		else if (strncmp("IDLING_STATE", rx_buf, index - 1) == 0)
+		//		{
+		//			setCurrentState(IDLING_STATE);
+		//		}
+		//		else if (strncmp("MODULATING_STATE", rx_buf, index - 1) == 0)
+		//		{
+		//			setCurrentState(MODULATING_STATE);
+		//		}
 
 		switch (state)
 		{
@@ -352,7 +415,7 @@ int main()
 			match_value++;
 			break;
 		case 2:
-			 match_value--;
+			match_value--;
 			break;
 		}
 
@@ -362,17 +425,17 @@ int main()
 			// Send reference voltage and current voltage to controller
 			u1 = PI(getVoltageSetPoint(), u2, getKi(), getKp()); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
 			*ptr_register = u1 * 1000;
-			u2 = convert(u1);		 // convert the input from PI controller to output voltage u2
-			char c[50];				 //size of the number
+			u2 = convert(u1); // convert the input from PI controller to output voltage u2
+			char c[50];		  //size of the number
 
-			if (rounds % 100 == 0) {
+			if (rounds % 100 == 0)
+			{
 				sprintf(c, "%f", u2);
 				xil_printf(c);
 				xil_printf("\n");
 			}
 
 			rounds = rounds + 1;
-
 		}
 	}
 
