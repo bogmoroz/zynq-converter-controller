@@ -169,10 +169,11 @@ void PushButtons_Intr_Handler(void *data)
 		break;
 	case LD2:
 		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD2); // LD2.
-		ProcessIncrementRequest();
+		processIncrementDecrementRequest(1);
 		break;
 	case LD3:
 		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD3); // LD3.
+		processIncrementDecrementRequest(0);
 		break;
 	}
 	XGpio_InterruptClear(&BTNS_SWTS, 0xF);

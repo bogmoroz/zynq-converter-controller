@@ -11,6 +11,7 @@
 #include <xuartps_hw.h>
 #include <xscugic.h>
 #include <xil_exception.h>
+#include <string.h>
 
 #define ENTER_CRITICAL Xil_ExceptionDisable() // Disable Interrupts
 #define EXIT_CRITICAL Xil_ExceptionEnable()	  // Enable Interrupts
@@ -152,13 +153,21 @@ int ProcessEvent(int Event)
 	return CurrentState; // we simply return current state if we receive event out of range
 }
 
-int ProcessIncrementRequest()
+int processIncrementDecrementRequest(int command)
 {
+	int incrementCommandCode = 1;
+	int decrementCommandCode = 0;
+
 	switch (CurrentState)
 	{
 	case CONFIGURATION_STATE_KP:
+
 		// increment Kp
-		setKp(getKp() + 0.01);
+		if (command == 1) {
+			setKp(getKp() + 0.01);
+		} else if (command == 0) {
+			setKp(getKp() - 0.01);
+		}
 		char outputStringKp[50];
 		sprintf(outputStringKp, "%f", getKp());
 		xil_printf(outputStringKp);
