@@ -8,26 +8,29 @@ LD_SRCS += \
 
 C_SRCS += \
 ../src/controller.c \
-../src/interrupt_uart.c \
 ../src/interrupts_buttons.c \
+../src/led_drivers.c \
 ../src/pid.c \
 ../src/platform.c \
+../src/uart_comms.c \
 ../src/zynq-converter-controller.c 
 
 OBJS += \
 ./src/controller.o \
-./src/interrupt_uart.o \
 ./src/interrupts_buttons.o \
+./src/led_drivers.o \
 ./src/pid.o \
 ./src/platform.o \
+./src/uart_comms.o \
 ./src/zynq-converter-controller.o 
 
 C_DEPS += \
 ./src/controller.d \
-./src/interrupt_uart.d \
 ./src/interrupts_buttons.d \
+./src/led_drivers.d \
 ./src/pid.d \
 ./src/platform.d \
+./src/uart_comms.d \
 ./src/zynq-converter-controller.d 
 
 
