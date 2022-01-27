@@ -155,13 +155,9 @@ int ProcessEvent(int Event)
 
 int processIncrementDecrementRequest(int command)
 {
-	int incrementCommandCode = 1;
-	int decrementCommandCode = 0;
-
 	switch (CurrentState)
 	{
 	case CONFIGURATION_STATE_KP:
-
 		// increment Kp
 		if (command == 1) {
 			setKp(getKp() + 0.01);
@@ -175,7 +171,11 @@ int processIncrementDecrementRequest(int command)
 		return;
 	case CONFIGURATION_STATE_KI:
 		// increment Ki
-		setKi(getKi() + 0.01);
+		if (command == 1) {
+			setKi(getKi() + 0.001);
+		} else if (command == 0) {
+			setKi(getKi() - 0.001);
+		}
 		char outputStringKi[50];
 		sprintf(outputStringKi, "%f", getKi());
 		xil_printf(outputStringKi);
@@ -183,9 +183,14 @@ int processIncrementDecrementRequest(int command)
 		return;
 	case MODULATING_STATE:
 		// increment voltage set point
-		setVoltageSetPoint(getVoltageSetPoint() + 1);
+		if (command == 1) {
+			setVoltageSetPoint(getVoltageSetPoint() + 1);
+		} else if (command == 0) {
+			setVoltageSetPoint(getVoltageSetPoint() - 1);
+		}
+
 		char outputStringVoltage[50];
-		sprintf(outputStringVoltage, "%d", getVoltageSetPoint());
+		sprintf(outputStringVoltage, "%f", getVoltageSetPoint());
 		xil_printf(outputStringVoltage);
 		xil_printf("\n");
 		return;
@@ -342,47 +347,21 @@ int main()
 		{
 		case 0:
 			ptr_register = &TTC0_MATCH_0;
-			break; // lets
+			break;
 		case 1:
-			*ptr_register = match_value++;
+			match_value++;
 			break;
 		case 2:
-			*ptr_register = match_value--;
-			break;
-
-		case 3:
-			ptr_register = &TTC0_MATCH_1_COUNTER_2;
-			break; // get
-		case 4:
-			*ptr_register = match_value++;
-			break;
-		case 5:
-			*ptr_register = match_value--;
-			break;
-
-		case 6:
-			ptr_register = &TTC0_MATCH_1_COUNTER_3;
-			break; // the party
-		case 7:
-			*ptr_register = match_value++;
-			break;
-		case 8:
-			*ptr_register = match_value--;
-			break;
-
-		case 9:
-			TTC0_MATCH_0 = TTC0_MATCH_1_COUNTER_2 = TTC0_MATCH_1_COUNTER_3 = match_value++;
-			break; // started
-		case 10:
-			TTC0_MATCH_0 = TTC0_MATCH_1_COUNTER_2 = TTC0_MATCH_1_COUNTER_3 = match_value--;
+			 match_value--;
 			break;
 		}
 
-		if (match_value == 0)
+		if (match_value == 0 && CurrentState == MODULATING_STATE)
 		{
-			state == 10 ? state = 0 : state++; // change state
+			state == 2 ? state = 0 : state++; // change state
 			// Send reference voltage and current voltage to controller
 			u1 = PI(getVoltageSetPoint(), u2, getKi(), getKp()); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
+			*ptr_register = u1 * 1000;
 			u2 = convert(u1);		 // convert the input from PI controller to output voltage u2
 			char c[50];				 //size of the number
 

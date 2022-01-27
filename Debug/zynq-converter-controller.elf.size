@@ -1,2 +1,2 @@
    text	   data	    bss	    dec	    hex	filename
-  63572	   3448	  23456	  90476	  1616c	zynq-converter-controller.elf
+  63444	   3448	  23456	  90348	  160ec	zynq-converter-controller.elf
