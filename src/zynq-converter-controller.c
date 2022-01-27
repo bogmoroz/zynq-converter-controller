@@ -59,7 +59,7 @@ int ProcessEvent(int Event);
 
 float Ki = 0.001;
 float Kp = 0.01;
-int voltageSetPoint = 50;
+float voltageSetPoint = 50;
 
 void setKi(float n)
 {
@@ -81,12 +81,12 @@ float getKp(void)
 	return Kp;
 }
 
-void setVoltageSetPoint(int n)
+void setVoltageSetPoint(float n)
 {
 	voltageSetPoint = n;
 }
 
-int getVoltageSetPoint(void)
+float getVoltageSetPoint(void)
 {
 	return voltageSetPoint;
 }
@@ -236,6 +236,77 @@ void printInt(int value)
 //	return s;
 //}
 
+float PI(float y_ref, float y_act, float Ki, float Kp)
+{
+	static float u1_old = 0;
+	float error_new, u1_new;
+	float u1_max = 1.5;
+	error_new = y_ref - y_act;
+	u1_new = u1_old + Ki * error_new;
+	if (abs(u1_new) > u1_max)
+	{ //
+		u1_new = u1_old;
+	}
+	u1_old = u1_new;
+	return u1_new + Kp * error_new;
+}
+
+/*
+ * converter.c
+ *
+ *  Created on: Jan 27, 2022
+ *      Authors: Anssi & Bogdan
+ */
+
+/* Converter model */
+float convert(float u)
+{
+	unsigned int i, j;
+	static const float A[6][6] = {
+		{0.9652, -0.0172, 0.0057, -0.0058, 0.0052, -0.0251}, /* row 1 */
+
+		{0.7732, 0.1252, 0.2315, 0.07, 0.1282, 0.7754}, /* row 2 */
+
+		{0.8278, -0.7522, -0.0956, 0.3299, -0.4855, 0.3915}, /* row 3 */
+
+		{0.9948, 0.2655, -0.3848, 0.4212, 0.3927, 0.2899}, /* row 4 */
+
+		{0.7648, -0.4165, -0.4855, -0.3366, -0.0986, 0.7281}, /* row 5 */
+
+		{1.1056, 0.7587, 0.1179, 0.0748, -0.2192, 0.1491} /* row 6 */
+
+	};
+
+	static const float B[6] = {
+		0.0471,
+		0.0377,
+		0.0404,
+		0.0485,
+		0.0373,
+		0.0539};
+
+	static float states[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+	static float oldstates[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+	for (i = 0; i < 6; i++)
+	{
+		states[i] = 0.0;
+		for (j = 0; j < 6; j++)
+		{
+			states[i] = states[i] + A[i][j] * oldstates[j];
+		}
+		states[i] = states[i] + B[i] * u;
+	}
+
+	for (i = 0; i < 6; i++)
+	{
+		oldstates[i] = states[i];
+	}
+
+	return states[5];
+};
+
+
 int main()
 {
 	initButtonInterrupts();
@@ -249,13 +320,10 @@ int main()
 	// Initializing PID controller and converter values
 	float u0, u1, u2, Ki, Kp;
 	uint8_t s = 0;
-	// u0 = getVoltageSetPoint(); //reference voltage - what we want
 	u1 = 0;					   //actual voltage out of the controller
 	u2 = 0;					   // process variable - voltage out of the converter
-	// PID parameters
-	// TODO protect them with semaphores
-	//Ki = 0.001;
-	//Kp = 0.01;
+
+
 
 	while (rounds < 30000)
 	{
@@ -317,10 +385,15 @@ int main()
 			u1 = PI(getVoltageSetPoint(), u2, getKi(), getKp()); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
 			u2 = convert(u1);		 // convert the input from PI controller to output voltage u2
 			char c[50];				 //size of the number
-			sprintf(c, "%f", u2);
-			xil_printf(c);
-			xil_printf("\n");
+
+			if (rounds % 100 == 0) {
+				sprintf(c, "%f", u2);
+				xil_printf(c);
+				xil_printf("\n");
+			}
+
 			rounds = rounds + 1;
+
 		}
 	}
 
