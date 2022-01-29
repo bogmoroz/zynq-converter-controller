@@ -64,7 +64,7 @@ float voltageSetPoint = 50.0;
 
 // 0 for unlocked, 1 for locked with buttons, 2 for locked with uart
 int semaphoreState = 0;
-u32 timestampSemaphoreLocked = 0;
+int semaphoreLockedPeriod = 0;
 
 void setKi(float n)
 {
@@ -274,13 +274,16 @@ int acquireSemaphore(int codeOfRequestSource)
 		{
 			semaphoreState = codeOfRequestSource; // Activate semaphore
 			// Record timer value when sempahore was locked, used to release the semaphore after a timeout
-			timestampSemaphoreLocked = &TTC0_MATCH_0;
-			check = FALSE; // Leave loop
+
+			semaphoreLockedPeriod = 0;
+
 		}
 		else if (semaphoreState != codeOfRequestSource)
 		{
 			xil_printf("Semaphore locked, please wait...");
 		}
+
+		check = false; // Leave loop
 		Xil_ExceptionEnable(); // Enable interrupts after semaphore has been accessed
 	}
 	return semaphoreState;
@@ -288,6 +291,7 @@ int acquireSemaphore(int codeOfRequestSource)
 
 void releaseSemaphore(void)
 {
+	semaphoreLockedPeriod = 0;
 	semaphoreState = 0;
 }
 
@@ -473,12 +477,15 @@ int main()
 			}
 
 			rounds = rounds + 1;
-		}
 
-		if ((&TTC0_MATCH_0 - &timestampSemaphoreLocked) > 278000000 && &semaphoreState != 0)
-		{
-			xil_printf("5 seconds passed, releasing semaphore");
-			releaseSemaphore();
+			if (semaphoreState != 0) {
+				if (semaphoreLockedPeriod > 424) {
+					xil_printf("Timeout passed, releasing semaphore");
+					releaseSemaphore();
+				} else {
+					semaphoreLockedPeriod++;
+				}
+			}
 		}
 	}
 
