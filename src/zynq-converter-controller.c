@@ -381,37 +381,35 @@ int main()
 			int index = 0;
 
 			char rx_buf[30];
+			rx_buf[0] = input;
+
 			while (input != '\r')
 			{
 				xil_printf("Reading uart input... \n");
 				input = uartReceive();
 				if (input)
 				{
+					++index;
 					xil_printf("Adding to buffer... \n");
 					rx_buf[index] = input;
-					index++;
 				}
 			}
 
-			//		xil_printf("%d\n", strcmp("CONFIGURATION_STATE_KI", "CONFIGURATION_STATE_KI"));
-			//		xil_printf("%d\n", strncmp("CONFIGURATION_STATE_KI", "CONFIGURATION_STATE_KIfadsfasf", index));
-			//		xil_printf("%d\n",index);
-			//		xil_printf("%s\n",rx_buf);
 
 			xil_printf("Resolving system state with input %s \n", rx_buf);
-			if (index > 1 && strncmp("ONFIGURATION_STATE_KI", rx_buf, index - 1) == 0)
+			if (index > 1 && strncmp("CONFIGURATION_STATE_KI", rx_buf, index) == 0)
 			{
 				setCurrentState(CONFIGURATION_STATE_KI);
 			}
-			else if (index > 1 && strncmp("ONFIGURATION_STATE_KP", rx_buf, index - 1) == 0)
+			else if (index > 1 && strncmp("CONFIGURATION_STATE_KP", rx_buf, index) == 0)
 			{
 				setCurrentState(CONFIGURATION_STATE_KP);
 			}
-			else if (index > 1 && strncmp("DLING_STATE", rx_buf, index - 1) == 0)
+			else if (index > 1 && strncmp("IDLING_STATE", rx_buf, index) == 0)
 			{
 				setCurrentState(IDLING_STATE);
 			}
-			else if (index > 1 && strncmp("ODULATING_STATE", rx_buf, index - 1) == 0)
+			else if (index > 1 && strncmp("MODULATING_STATE", rx_buf, index) == 0)
 			{
 				setCurrentState(MODULATING_STATE);
 			}
