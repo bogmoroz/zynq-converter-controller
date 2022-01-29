@@ -90,7 +90,6 @@ void initButtonInterrupts()
 	Status = IntcInitFunction(INTC_DEVICE_ID);
 }
 
-
 int IntcInitFunction(u16 DeviceId)
 {
 	xil_printf("Hi\n");
@@ -155,15 +154,22 @@ int InterruptSystemSetup(XScuGic *XScuGicInstancePtr)
 void PushButtons_Intr_Handler(void *data)
 {
 	buttons = XGpio_DiscreteRead(&BTNS_SWTS, BUTTONS_channel);
+	int semaphoreState = acquireSemaphore(1);
 	switch (buttons)
 	{
 	case LD0:
 		xil_printf("Pressed button 0\n");
-		ProcessEvent(0);
+		if (semaphoreState == 1)
+		{
+			ProcessEvent(0);
+		}
 		break;
 	case LD1:
 		xil_printf("Pressed button 1\n");
-		ProcessEvent(1);
+		if (semaphoreState == 1)
+		{
+			ProcessEvent(1);
+		}
 		break;
 	case LD2:
 		processIncrementDecrementRequest(1);

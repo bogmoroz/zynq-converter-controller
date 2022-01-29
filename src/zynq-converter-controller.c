@@ -12,6 +12,7 @@
 #include <xscugic.h>
 #include <xil_exception.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define ENTER_CRITICAL Xil_ExceptionDisable() // Disable Interrupts
 #define EXIT_CRITICAL Xil_ExceptionEnable()	  // Enable Interrupts
@@ -61,6 +62,10 @@ float Ki = 0.001;
 float Kp = 0.01;
 float voltageSetPoint = 50.0;
 
+// 0 for unlocked, 1 for locked with buttons, 2 for locked with uart
+int semaphoreState = 0;
+u32 timestampSemaphoreLocked = 0;
+
 void setKi(float n)
 {
 	Ki = n;
@@ -105,19 +110,20 @@ void setCurrentState(int n)
 {
 	CurrentState = n;
 	printCurrentState();
-	switch(CurrentState) {
+	switch (CurrentState)
+	{
 	case CONFIGURATION_STATE_KI:
 		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD0);
 		return;
 	case CONFIGURATION_STATE_KP:
-			XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD1);
-			return;
+		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD1);
+		return;
 	case IDLING_STATE:
-			XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD2);
-			return;
+		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD2);
+		return;
 	case MODULATING_STATE:
-			XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD3);
-			return;
+		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD3);
+		return;
 	default:
 		return;
 	}
@@ -255,30 +261,35 @@ void printInt(int value)
 }
 
 /* Semaphores */
-//
-//int AcquireSemaphore(void)
-//{
-//	bool check = true;
-//	while (check)
-//	{
-//		while (s)
-//			;					// wait for zero
-//		Xil_ExceptionDisable(); // Disable interrupts during semaphore access
-//		if (s == FALSE)			// check if value of s has changed during execution of last 2 lines
-//		{
-//			s = TRUE;	   // Activate semaphore
-//			check = FALSE; // Leave loop
-//		};
-//		Xil_ExceptionEnable(); // Enable interrupts after semaphore has been accessed
-//	}
-//	return s;
-//}
-//
-//int ReleaseSemaphore(void)
-//{
-//	s = 0;
-//	return s;
-//}
+// 1 for buttons, 2 for UART
+int acquireSemaphore(int codeOfRequestSource)
+{
+	bool check = true;
+	while (check)
+	{
+		//		while (s)
+		//			;					// wait for zero
+		Xil_ExceptionDisable(); // Disable interrupts during semaphore access
+		if (semaphoreState == 0)				// check if value of s has changed during execution of last 2 lines
+		{
+			semaphoreState = codeOfRequestSource; // Activate semaphore
+			// Record timer value when sempahore was locked, used to release the semaphore after a timeout
+			timestampSemaphoreLocked = &TTC0_MATCH_0;
+			check = FALSE; // Leave loop
+		}
+		else if (semaphoreState != codeOfRequestSource)
+		{
+			xil_printf("Semaphore locked, please wait...");
+		}
+		Xil_ExceptionEnable(); // Enable interrupts after semaphore has been accessed
+	}
+	return semaphoreState;
+}
+
+void releaseSemaphore(void)
+{
+	semaphoreState = 0;
+}
 
 float PI(float y_ref, float y_act, float Ki, float Kp)
 {
@@ -368,15 +379,14 @@ int main()
 	u1 = 0; //actual voltage out of the controller
 	u2 = 0; // process variable - voltage out of the converter
 
-
-
 	while (rounds < 300000)
 	{
 		char input = '1';
 		input = uartReceive();
 		// uartSend(input);
 
-		if (input) {
+		if (input)
+		{
 
 			int index = 0;
 
@@ -395,26 +405,40 @@ int main()
 				}
 			}
 
-
 			xil_printf("Resolving system state with input %s \n", rx_buf);
 			if (index > 1 && strncmp("CONFIGURATION_STATE_KI", rx_buf, index) == 0)
 			{
-				setCurrentState(CONFIGURATION_STATE_KI);
+				int semaphoreState = acquireSemaphore(2);
+				if (semaphoreState == 2)
+				{
+					setCurrentState(CONFIGURATION_STATE_KI);
+				}
 			}
 			else if (index > 1 && strncmp("CONFIGURATION_STATE_KP", rx_buf, index) == 0)
 			{
-				setCurrentState(CONFIGURATION_STATE_KP);
+				int semaphoreState = acquireSemaphore(2);
+				if (semaphoreState == 2)
+				{
+					setCurrentState(CONFIGURATION_STATE_KP);
+				}
 			}
 			else if (index > 1 && strncmp("IDLING_STATE", rx_buf, index) == 0)
 			{
-				setCurrentState(IDLING_STATE);
+				int semaphoreState = acquireSemaphore(2);
+				if (semaphoreState == 2)
+				{
+					setCurrentState(IDLING_STATE);
+				}
 			}
 			else if (index > 1 && strncmp("MODULATING_STATE", rx_buf, index) == 0)
 			{
-				setCurrentState(MODULATING_STATE);
+				int semaphoreState = acquireSemaphore(2);
+				if (semaphoreState == 2)
+				{
+					setCurrentState(MODULATING_STATE);
+				}
 			}
 		}
-
 
 		switch (state)
 		{
@@ -431,7 +455,8 @@ int main()
 
 		if (match_value == 0)
 		{
-			if (CurrentState == MODULATING_STATE) {
+			if (CurrentState == MODULATING_STATE)
+			{
 				state == 2 ? state = 0 : state++; // change state
 				// Send reference voltage and current voltage to controller
 				u1 = PI(getVoltageSetPoint(), u2, getKi(), getKp()); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
@@ -448,6 +473,12 @@ int main()
 			}
 
 			rounds = rounds + 1;
+		}
+
+		if ((&TTC0_MATCH_0 - &timestampSemaphoreLocked) > 278000000 && &semaphoreState != 0)
+		{
+			xil_printf("5 seconds passed, releasing semaphore");
+			releaseSemaphore();
 		}
 	}
 
