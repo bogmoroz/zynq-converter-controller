@@ -48,7 +48,6 @@ void uartSend(char c)
 		;
 }
 
-
 // Send string (character array) through UART interface
 void uartSendString(char str[20])
 {

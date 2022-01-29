@@ -105,22 +105,22 @@ void setCurrentState(int n)
 {
 	CurrentState = n;
 	printCurrentState();
-	//	switch(CurrentState) {
-	//	case CONFIGURATION_STATE_KI:
-	//		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD0);
-	//		return;
-	//	case CONFIGURATION_STATE_KP:
-	//			XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD1);
-	//			return;
-	//	case IDLING_STATE:
-	//			XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD2);
-	//			return;
-	//	case MODULATING_STATE:
-	//			XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD3);
-	//			return;
-	//	default:
-	//		return;
-	//	}
+	switch(CurrentState) {
+	case CONFIGURATION_STATE_KI:
+		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD0);
+		return;
+	case CONFIGURATION_STATE_KP:
+			XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD1);
+			return;
+	case IDLING_STATE:
+			XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD2);
+			return;
+	case MODULATING_STATE:
+			XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD3);
+			return;
+	default:
+		return;
+	}
 }
 
 int getCurrentState()
@@ -368,43 +368,55 @@ int main()
 	u1 = 0; //actual voltage out of the controller
 	u2 = 0; // process variable - voltage out of the converter
 
+
+
 	while (rounds < 300000)
 	{
+		char input = '1';
+		input = uartReceive();
+		// uartSend(input);
 
-		//		int index = 0;
-		//		char input = '1';
-		//		char rx_buf[30];
-		//		while (input != '\r')
-		//		{
-		//			input = uartReceive();
-		//			if (input)
-		//			{
-		//				rx_buf[index] = input;
-		//				index++;
-		//			}
-		//		}
-		//
-		//		//		xil_printf("%d\n", strcmp("CONFIGURATION_STATE_KI", "CONFIGURATION_STATE_KI"));
-		//		//		xil_printf("%d\n", strncmp("CONFIGURATION_STATE_KI", "CONFIGURATION_STATE_KIfadsfasf", index));
-		//		//		xil_printf("%d\n",index);
-		//		//		xil_printf("%s\n",rx_buf);
-		//
-		//		if (strncmp("CONFIGURATION_STATE_KI", rx_buf, index - 1) == 0)
-		//		{
-		//			setCurrentState(CONFIGURATION_STATE_KI);
-		//		}
-		//		else if (strncmp("CONFIGURATION_STATE_KP", rx_buf, index - 1) == 0)
-		//		{
-		//			setCurrentState(CONFIGURATION_STATE_KP);
-		//		}
-		//		else if (strncmp("IDLING_STATE", rx_buf, index - 1) == 0)
-		//		{
-		//			setCurrentState(IDLING_STATE);
-		//		}
-		//		else if (strncmp("MODULATING_STATE", rx_buf, index - 1) == 0)
-		//		{
-		//			setCurrentState(MODULATING_STATE);
-		//		}
+		if (input) {
+
+			int index = 0;
+
+			char rx_buf[30];
+			while (input != '\r')
+			{
+				xil_printf("Reading uart input... \n");
+				input = uartReceive();
+				if (input)
+				{
+					xil_printf("Adding to buffer... \n");
+					rx_buf[index] = input;
+					index++;
+				}
+			}
+
+			//		xil_printf("%d\n", strcmp("CONFIGURATION_STATE_KI", "CONFIGURATION_STATE_KI"));
+			//		xil_printf("%d\n", strncmp("CONFIGURATION_STATE_KI", "CONFIGURATION_STATE_KIfadsfasf", index));
+			//		xil_printf("%d\n",index);
+			//		xil_printf("%s\n",rx_buf);
+
+			xil_printf("Resolving system state with input %s \n", rx_buf);
+			if (index > 1 && strncmp("ONFIGURATION_STATE_KI", rx_buf, index - 1) == 0)
+			{
+				setCurrentState(CONFIGURATION_STATE_KI);
+			}
+			else if (index > 1 && strncmp("ONFIGURATION_STATE_KP", rx_buf, index - 1) == 0)
+			{
+				setCurrentState(CONFIGURATION_STATE_KP);
+			}
+			else if (index > 1 && strncmp("DLING_STATE", rx_buf, index - 1) == 0)
+			{
+				setCurrentState(IDLING_STATE);
+			}
+			else if (index > 1 && strncmp("ODULATING_STATE", rx_buf, index - 1) == 0)
+			{
+				setCurrentState(MODULATING_STATE);
+			}
+		}
+
 
 		switch (state)
 		{
@@ -419,20 +431,22 @@ int main()
 			break;
 		}
 
-		if (match_value == 0 && CurrentState == MODULATING_STATE)
+		if (match_value == 0)
 		{
-			state == 2 ? state = 0 : state++; // change state
-			// Send reference voltage and current voltage to controller
-			u1 = PI(getVoltageSetPoint(), u2, getKi(), getKp()); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
-			*ptr_register = u1 * 1000;
-			u2 = convert(u1); // convert the input from PI controller to output voltage u2
-			char c[50];		  //size of the number
+			if (CurrentState == MODULATING_STATE) {
+				state == 2 ? state = 0 : state++; // change state
+				// Send reference voltage and current voltage to controller
+				u1 = PI(getVoltageSetPoint(), u2, getKi(), getKp()); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
+				*ptr_register = u1 * 1000;
+				u2 = convert(u1); // convert the input from PI controller to output voltage u2
+				char c[50];		  //size of the number
 
-			if (rounds % 100 == 0)
-			{
-				sprintf(c, "%f", u2);
-				xil_printf(c);
-				xil_printf("\n");
+				if (rounds % 100 == 0)
+				{
+					sprintf(c, "%f", u2);
+					xil_printf(c);
+					xil_printf("\n");
+				}
 			}
 
 			rounds = rounds + 1;
