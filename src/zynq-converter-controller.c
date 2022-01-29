@@ -13,6 +13,7 @@
 #include <xil_exception.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 #define ENTER_CRITICAL Xil_ExceptionDisable() // Disable Interrupts
 #define EXIT_CRITICAL Xil_ExceptionEnable()	  // Enable Interrupts
@@ -269,21 +270,20 @@ int acquireSemaphore(int codeOfRequestSource)
 	{
 		//		while (s)
 		//			;					// wait for zero
-		Xil_ExceptionDisable(); // Disable interrupts during semaphore access
-		if (semaphoreState == 0)				// check if value of s has changed during execution of last 2 lines
+		Xil_ExceptionDisable();	 // Disable interrupts during semaphore access
+		if (semaphoreState == 0) // check if value of s has changed during execution of last 2 lines
 		{
 			semaphoreState = codeOfRequestSource; // Activate semaphore
 			// Record timer value when sempahore was locked, used to release the semaphore after a timeout
 
 			semaphoreLockedPeriod = 0;
-
 		}
 		else if (semaphoreState != codeOfRequestSource)
 		{
 			xil_printf("Semaphore locked, please wait...");
 		}
 
-		check = false; // Leave loop
+		check = false;		   // Leave loop
 		Xil_ExceptionEnable(); // Enable interrupts after semaphore has been accessed
 	}
 	return semaphoreState;
@@ -399,47 +399,72 @@ int main()
 
 			while (input != '\r')
 			{
-				xil_printf("Reading uart input... \n");
+				// xil_printf("Reading uart input... \n");
 				input = uartReceive();
 				if (input)
 				{
 					++index;
-					xil_printf("Adding to buffer... \n");
+					// xil_printf("Adding to buffer... \n");
 					rx_buf[index] = input;
 				}
 			}
 
-			xil_printf("Resolving system state with input %s \n", rx_buf);
-			if (index > 1 && strncmp("CONFIGURATION_STATE_KI", rx_buf, index) == 0)
+			if (isdigit(*rx_buf))
 			{
-				int semaphoreState = acquireSemaphore(2);
-				if (semaphoreState == 2)
+				xil_printf("Input is a number \n");
+
+				char *pEnd;
+				float resolvedNumber = strtof(rx_buf, &pEnd);
+
+				if (getCurrentState() == CONFIGURATION_STATE_KI)
 				{
-					setCurrentState(CONFIGURATION_STATE_KI);
+					setKi(resolvedNumber);
+				}
+				else if (getCurrentState() == CONFIGURATION_STATE_KP)
+				{
+					setKp(resolvedNumber);
+				}
+				else if (getCurrentState() == MODULATING_STATE)
+				{
+					setVoltageSetPoint(resolvedNumber);
 				}
 			}
-			else if (index > 1 && strncmp("CONFIGURATION_STATE_KP", rx_buf, index) == 0)
+			else
 			{
-				int semaphoreState = acquireSemaphore(2);
-				if (semaphoreState == 2)
+				xil_printf("Input is not a number \n");
+
+				xil_printf("Resolving system state with input %s \n", rx_buf);
+				if (index > 1 && strncmp("CONFIGURATION_STATE_KI", rx_buf, index) == 0)
 				{
-					setCurrentState(CONFIGURATION_STATE_KP);
+					int semaphoreState = acquireSemaphore(2);
+					if (semaphoreState == 2)
+					{
+						setCurrentState(CONFIGURATION_STATE_KI);
+					}
 				}
-			}
-			else if (index > 1 && strncmp("IDLING_STATE", rx_buf, index) == 0)
-			{
-				int semaphoreState = acquireSemaphore(2);
-				if (semaphoreState == 2)
+				else if (index > 1 && strncmp("CONFIGURATION_STATE_KP", rx_buf, index) == 0)
 				{
-					setCurrentState(IDLING_STATE);
+					int semaphoreState = acquireSemaphore(2);
+					if (semaphoreState == 2)
+					{
+						setCurrentState(CONFIGURATION_STATE_KP);
+					}
 				}
-			}
-			else if (index > 1 && strncmp("MODULATING_STATE", rx_buf, index) == 0)
-			{
-				int semaphoreState = acquireSemaphore(2);
-				if (semaphoreState == 2)
+				else if (index > 1 && strncmp("IDLING_STATE", rx_buf, index) == 0)
 				{
-					setCurrentState(MODULATING_STATE);
+					int semaphoreState = acquireSemaphore(2);
+					if (semaphoreState == 2)
+					{
+						setCurrentState(IDLING_STATE);
+					}
+				}
+				else if (index > 1 && strncmp("MODULATING_STATE", rx_buf, index) == 0)
+				{
+					int semaphoreState = acquireSemaphore(2);
+					if (semaphoreState == 2)
+					{
+						setCurrentState(MODULATING_STATE);
+					}
 				}
 			}
 		}
@@ -478,11 +503,15 @@ int main()
 
 			rounds = rounds + 1;
 
-			if (semaphoreState != 0) {
-				if (semaphoreLockedPeriod > 424) {
-					xil_printf("Timeout passed, releasing semaphore");
+			if (semaphoreState != 0)
+			{
+				if (semaphoreLockedPeriod > 424)
+				{
+					xil_printf("Timeout passed, releasing semaphore \n");
 					releaseSemaphore();
-				} else {
+				}
+				else
+				{
 					semaphoreLockedPeriod++;
 				}
 			}

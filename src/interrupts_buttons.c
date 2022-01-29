@@ -172,10 +172,18 @@ void PushButtons_Intr_Handler(void *data)
 		}
 		break;
 	case LD2:
-		processIncrementDecrementRequest(1);
+		xil_printf("Pressed button 2\n");
+		if (semaphoreState == 1)
+		{
+			processIncrementDecrementRequest(1);
+		}
 		break;
 	case LD3:
-		processIncrementDecrementRequest(0);
+		xil_printf("Pressed button 2\n");
+		if (semaphoreState == 1)
+		{
+			processIncrementDecrementRequest(0);
+		}
 		break;
 	}
 	XGpio_InterruptClear(&BTNS_SWTS, 0xF);
