@@ -300,7 +300,7 @@ int acquireSemaphore(int codeOfRequestSource)
 		{
 			setSemaphoreState(codeOfRequestSource); // Activate semaphore
 			// Start timer value to release the semaphore after a timeout
-			xil_printf("Acquiring semaphore");
+			xil_printf("Acquiring semaphore...\n");
 			setSemaphoreLockedPeriod(0);
 		}
 		else if (semaphoreState != codeOfRequestSource) // Tell user semaphore is locked
@@ -505,6 +505,7 @@ int main()
 {
 	initButtonInterrupts(); // initialize button interrupts
 	setupUART();			// setup uart
+	setupTimersAndRGBLed();
 
 	setCurrentState(CONFIGURATION_STATE_KI); // Put the system into its initial state
 
@@ -539,7 +540,7 @@ int main()
 				}
 			}
 
-			if (isdigit(*rx_buf) && index > 1) // check if the received character was a number
+			if (isdigit(*rx_buf) && index >= 1) // check if the received character was a number
 			{
 				xil_printf("Input is a number \n");
 				xil_printf("Input: %s \n", rx_buf);
