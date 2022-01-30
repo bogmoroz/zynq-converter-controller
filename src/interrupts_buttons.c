@@ -92,7 +92,6 @@ void initButtonInterrupts()
 
 int IntcInitFunction(u16 DeviceId)
 {
-	xil_printf("Hi\n");
 	xil_printf("Initializing interrupts\n");
 	int Status;
 
@@ -158,16 +157,24 @@ void PushButtons_Intr_Handler(void *data)
 	switch (buttons)
 	{
 	case LD0:
-		xil_printf("Pressed button 0\n");
+		// Pressed button zero
+		// Check if the resource protected by semaphore is available
 		if (semaphoreState == 1)
 		{
+			//Buttons have control over the system, send event 0 (i.e. "go to next system state")
 			ProcessEvent(0);
 		}
 		break;
 	case LD1:
-		xil_printf("Pressed button 1\n");
+		// Pressed button one
+		// Check if the resource protected by semaphore is available
 		if (semaphoreState == 1)
 		{
+			/*
+			 * Buttons have control over the system, send event 1 (i.e.
+			 * "go to CONFIGURATION_STATE_KI if in CONFIGURATION_STATE_KP" and go
+			 * to CONFIGURATION_STATE_KP if in CONFIGURATION_STATE_KI)
+			 */
 			ProcessEvent(1);
 		}
 		break;
@@ -179,7 +186,7 @@ void PushButtons_Intr_Handler(void *data)
 		}
 		break;
 	case LD3:
-		xil_printf("Pressed button 2\n");
+		xil_printf("Pressed button 3\n");
 		if (semaphoreState == 1)
 		{
 			processIncrementDecrementRequest(0);

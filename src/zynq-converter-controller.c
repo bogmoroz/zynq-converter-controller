@@ -15,6 +15,8 @@
 #include <stdbool.h>
 #include <ctype.h>
 
+
+
 #define ENTER_CRITICAL Xil_ExceptionDisable() // Disable Interrupts
 #define EXIT_CRITICAL Xil_ExceptionEnable()	  // Enable Interrupts
 
@@ -111,6 +113,7 @@ void setCurrentState(int n)
 {
 	CurrentState = n;
 	printCurrentState();
+	printSystemState();
 	switch (CurrentState)
 	{
 	case CONFIGURATION_STATE_KI:
@@ -190,7 +193,15 @@ void printCurrentState()
 	}
 }
 
-int processIncrementDecrementRequest(int command)
+/**
+ * Function that increments or decrements a given value based on the current state of the system.
+ * In CONFIGURATION_STATE_KP, the function increments or decrements Kp.
+ * In CONFIGURATION_STATE_KI, the function increments or decrements Ki.
+ * In MODULATING_STATE, the function increments or decrements the voltage set point.
+ *
+ * @parameter command - 1 means "increment", 0 means "decrement"
+ */
+void processIncrementDecrementRequest(int command)
 {
 	switch (CurrentState)
 	{
@@ -280,7 +291,14 @@ int acquireSemaphore(int codeOfRequestSource)
 		}
 		else if (semaphoreState != codeOfRequestSource)
 		{
-			xil_printf("Semaphore locked, please wait...");
+			if (semaphoreState == 1) {
+				uartSendString("Trying to use UART but semaphore locked by buttons, please wait a few seconds...\n");
+			} else {
+				uartSendString("Trying to use buttons but semaphore locked by UART, please wait a few seconds...\n");
+			}
+
+		} else if (semaphoreState == codeOfRequestSource) {
+			semaphoreLockedPeriod = 0;
 		}
 
 		check = false;		   // Leave loop
@@ -365,6 +383,84 @@ float convert(float u)
 	return states[5];
 };
 
+
+float atof(const char *s)
+{
+  float a = 0.0;
+  int e = 0;
+  int c;
+  while ((c = *s++) != '\0' && isdigit(c)) {
+    a = a*10.0 + (c - '0');
+  }
+  if (c == '.') {
+    while ((c = *s++) != '\0' && isdigit(c)) {
+      a = a*10.0 + (c - '0');
+      e = e-1;
+    }
+  }
+  if (c == 'e' || c == 'E') {
+    int sign = 1;
+    int i = 0;
+    c = *s++;
+    if (c == '+')
+      c = *s++;
+    else if (c == '-') {
+      c = *s++;
+      sign = -1;
+    }
+    while (isdigit(c)) {
+      i = i*10 + (c - '0');
+      c = *s++;
+    }
+    e += i*sign;
+  }
+  while (e > 0) {
+    a *= 10.0;
+    e--;
+  }
+  while (e < 0) {
+    a *= 0.1;
+    e++;
+  }
+  return a;
+}
+
+void printSystemState() {
+	uartSendString("=================================\n");
+	uartSendString("System is now in state: ");
+	int systemState = getCurrentState();
+	if (systemState == 0) {
+		uartSendString("CONFIGURATION_STATE_KI");
+	} else if (systemState == 1) {
+		uartSendString("CONFIGURATION_STATE_KP");
+	} else if (systemState == 2) {
+		uartSendString("IDLING_STATE");
+	} else if (systemState == 3) {
+		uartSendString("MODULATING_STATE");
+	}
+	uartSendString("\n");
+
+	uartSendString("PI controller parameters are as follows:\n");
+	char outputString[50];
+	sprintf(outputString, "Ki: %f, ", getKi());
+	uartSendString(outputString);
+	sprintf(outputString, "Kp: %f, ", getKp());
+	uartSendString(outputString);
+	sprintf(outputString, "Voltage Set Point: %f", getVoltageSetPoint());
+	uartSendString(outputString);
+	uartSendString("\n");
+
+	if (semaphoreState == 0) {
+		uartSendString("Semaphore is free.\n");
+	} else if  (semaphoreState == 1) {
+		uartSendString("Buttons control the system, UART input blocked.\n");
+	} else if (semaphoreState == 2) {
+		uartSendString("UART controls the system, button input blocked for a period.\n");
+	}
+
+	uartSendString("=================================\n");
+}
+
 int main()
 {
 	// setCurrentState(CONFIGURATION_STATE_KI);
@@ -378,8 +474,7 @@ int main()
 	volatile u32 *ptr_register = NULL;
 	uint16_t rounds = 0;
 	// Initializing PID controller and converter values
-	float u0, u1, u2, Ki, Kp;
-	uint8_t s = 0;
+	float u1, u2, Ki, Kp;
 	u1 = 0; //actual voltage out of the controller
 	u2 = 0; // process variable - voltage out of the converter
 
@@ -409,24 +504,50 @@ int main()
 				}
 			}
 
-			if (isdigit(*rx_buf))
+			if (isdigit(*rx_buf) && index > 1)
 			{
 				xil_printf("Input is a number \n");
+				xil_printf("Input: %s \n", rx_buf);
 
-				char *pEnd;
-				float resolvedNumber = strtof(rx_buf, &pEnd);
+				float resolvedNumber = atof(rx_buf);
 
 				if (getCurrentState() == CONFIGURATION_STATE_KI)
 				{
-					setKi(resolvedNumber);
+					int semaphoreState = acquireSemaphore(2);
+					if (semaphoreState == 2)
+					{
+						setKi(resolvedNumber);
+						char outputStringKi[50];
+						sprintf(outputStringKi, "%f", getKi());
+						xil_printf(outputStringKi);
+						xil_printf("\n");
+					}
 				}
 				else if (getCurrentState() == CONFIGURATION_STATE_KP)
 				{
-					setKp(resolvedNumber);
+					int semaphoreState = acquireSemaphore(2);
+					if (semaphoreState == 2)
+					{
+						setKp(resolvedNumber);
+						char outputStringKp[50];
+						sprintf(outputStringKp, "%f", getKp());
+						xil_printf(outputStringKp);
+						xil_printf("\n");
+					}
+
 				}
 				else if (getCurrentState() == MODULATING_STATE)
 				{
-					setVoltageSetPoint(resolvedNumber);
+
+					int semaphoreState = acquireSemaphore(2);
+					if (semaphoreState == 2)
+					{
+						setVoltageSetPoint(resolvedNumber);
+						char outputStringVoltage[50];
+						sprintf(outputStringVoltage, "%f", getVoltageSetPoint());
+						xil_printf(outputStringVoltage);
+						xil_printf("\n");
+					}
 				}
 			}
 			else
@@ -505,7 +626,7 @@ int main()
 
 			if (semaphoreState != 0)
 			{
-				if (semaphoreLockedPeriod > 424)
+				if (semaphoreLockedPeriod > 900)
 				{
 					xil_printf("Timeout passed, releasing semaphore \n");
 					releaseSemaphore();
@@ -516,6 +637,11 @@ int main()
 				}
 			}
 		}
+
+//		if (match_value == 32000) {
+//			u1 = PI(getVoltageSetPoint(), u2, getKi(), getKp()); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
+//			u2 = convert(u1); // convert the input from PI controller to output voltage u2
+//		}
 	}
 
 	cleanup_platform();

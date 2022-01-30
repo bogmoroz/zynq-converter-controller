@@ -49,7 +49,7 @@ void uartSend(char c)
 }
 
 // Send string (character array) through UART interface
-void uartSendString(char str[20])
+void uartSendString(char str[50])
 {
 	char *ptr = str;
 	while (*ptr != '\0')
