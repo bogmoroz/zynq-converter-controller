@@ -17,22 +17,22 @@
 
 #define getName(var)  #var
 
-#define BUTTONS_channel 2
+#define BUTTONS_channel 2 // Defining buttons for interrupts
 #define BUTTONS_AXI_ID XPAR_AXI_GPIO_SW_BTN_DEVICE_ID
 
-#define SWITCHES_channel 1
+#define SWITCHES_channel 1 // Defining switches for interrupts, not used
 #define SWITCHES_AXI_ID XPAR_AXI_GPIO_SW_BTN_DEVICE_ID
 
-#define LEDS_channel 1
+#define LEDS_channel 1 // Defining LEDs
 #define LEDS_AXI_ID XPAR_AXI_GPIO_LED_DEVICE_ID
 
 #define INTC_DEVICE_ID XPAR_PS7_SCUGIC_0_DEVICE_ID
-#define INT_PushButtons 61
+#define INT_PushButtons 61 // Button interrupts
 
-#define LD0 0x1
-#define LD1 0x2
-#define LD2 0x4
-#define LD3 0x8
+#define LD0 0x1 // LED 1
+#define LD1 0x2 // LED 2
+#define LD2 0x4 // LED 3
+#define LD3 0x8 // LED 4
 
 XGpio BTNS_SWTS, LEDS;
 
@@ -56,6 +56,10 @@ XScuGic InterruptControllerInstance; // Interrupt controller instance
 
 int ProcessEvent(int Event);
 
+/* Setup State change table for buttons, 
+first button switches between idling state, modulating state and configuration state Ki
+second button switches between Ki and Kp in configuration state, otherwise it switches to modulating state*/
+
 const char StateChangeTable[NUMBER_OF_STATES][NUMBER_OF_EVENTS] =
 // event  GO_TO_NEXT_STATE    GO_TO_NEXT_K
 	{
@@ -65,10 +69,10 @@ const char StateChangeTable[NUMBER_OF_STATES][NUMBER_OF_EVENTS] =
 		CONFIGURATION_STATE_KI,		MODULATING_STATE };          // MODULATING_STATE
 
 
-static int CurrentState = 0;
+static int CurrentState = 0; // initialize state to 0 = configuration state Ki
 
 /*
-* This function initializes the UART - serial connection to PC (from Exercise 4)
+* This function initializes the UART - serial connection to PC
 */
 void SetupUART()
 {
@@ -106,9 +110,6 @@ void uart_send(char c)
 	while (UART_STATUS & XUARTPS_SR_TACTIVE)
 		;
 }
-
-//#define BUFFER_SIZE 20
-//static char str[] = "\tHello World\r";
 
 // Send string (character array) through UART interface
 void uart_send_string(char str[20])
@@ -148,30 +149,30 @@ void set_leds(uint8_t input)
 	AXI_LED_DATA = mask; // LEDS LD3..0 - AXI LED DATA GPIO register bits [3:0]
 }
 
-int ProcessEvent(int Event)
+int ProcessEvent(int Event) // Process state changes made with buttons
 {
 
-	xil_printf("Processing event with number: %d\n", Event);
+	xil_printf("Processing event with number: %d\n", Event); // Button pressed
 
 	if (Event <= NUMBER_OF_EVENTS)
 	{
-		CurrentState = StateChangeTable[CurrentState][Event];
+		CurrentState = StateChangeTable[CurrentState][Event]; // State changed according to the state change table
 	}
 
 	if (CurrentState == 0) {
-		xil_printf("Switching to state: %s\n", "CONFIGURATION_STATE_KI");
+		xil_printf("Switching to state: %s\n", "CONFIGURATION_STATE_KI"); // Inform user we are changing to CONFIGURATION_STATE_KI
 	}
 
 	if (CurrentState == 1) {
-		xil_printf("Switching to state: %s\n", "CONFIGURATION_STATE_KP");
+		xil_printf("Switching to state: %s\n", "CONFIGURATION_STATE_KP"); // Inform user we are changing to CONFIGURATION_STATE_KP
 	}
 
 	if (CurrentState == 2) {
-		xil_printf("Switching to state: %s\n", "IDLING_STATE");
+		xil_printf("Switching to state: %s\n", "IDLING_STATE"); // Inform user we are changing to IDLING_STATE
 	}
 
 	if (CurrentState == 3) {
-		xil_printf("Switching to state: %s\n", "MODULATING_STATE");
+		xil_printf("Switching to state: %s\n", "MODULATING_STATE"); // Inform user we are changing to MODULATING_STATE
 	}
 
 
@@ -224,7 +225,7 @@ float convert(float u)
 		oldstates[i] = states[i];
 	}
 
-	return states[5];
+	return states[5]; // Return u3 as output
 };
 
 /* Semaphores */
