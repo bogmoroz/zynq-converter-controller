@@ -179,9 +179,15 @@ void PushButtons_Intr_Handler(void *data)
 		}
 		break;
 	case LD2:
-		xil_printf("Pressed button 2\n");
+		// Pressed button two
+		// Check if the resource protected by semaphore is available
 		if (semaphoreState == 1)
 		{
+			/*
+			 * Buttons have control over the system, send increment or decrement request.
+			 * The request increments or decrements a Ki, Kp or the set point voltage, based on the state of the system.
+			 * processIncrementDecrementRequest interprets 1 as an increment request, and 0 as a decrement request.
+			 */
 			processIncrementDecrementRequest(1);
 		}
 		break;
