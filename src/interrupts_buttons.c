@@ -56,89 +56,42 @@ int IntcInitFunction(u16 DeviceId);
 int InterruptSystemSetup(XScuGic *XScuGicInstancePtr);
 void PushButtons_Intr_Handler(void *data);
 
-//void UartIRQHandler(void)
-//{
-////	Xil_ExceptionDisable();
-//	xil_printf("UartIRQHandler() called!!!\r\n");
-//
-//	char input = uart_receive(); // polling UART receive buffer
-//	if (input)
-//		set_leds(input); // if new data received call set_leds()
-//
-////	Xil_ExceptionEnable();
-//
-//	//Xil_ExceptionDisable();
-//	//    UART_ISR = XUARTPS_IXR_MASK;
-//	//    xil_printf("UartIRQHandler() called!!!\r\n");
-//	//    AXI_LED_DATA ^= 0b1100; // Toggle (XOR operator (^)) two LEDs
-//	//    char temp;
-//	//    temp = uart_receive();
-//	//    int i = 0;
-//	//    while (temp)
-//	//    {
-//	//        i++;
-//	//        xil_printf("%d: %d\r\n", i, temp);
-//	//        temp = uart_receive();
-//	//    }
-//	//Xil_ExceptionEnable();
-//}
+/* Button interrupt */
 
-//void SetupUARTInterrupt(XScuGic *InterruptControllerInstancePtr)
-//{
-//	xil_printf("SetupUARTInterrupt() called!!!\r\n");
-//
-//	Xil_ExceptionDisable();
-//
-//	uint32_t r = 0; // Temporary value variable
-//
-//	r = UART_CTRL;
-//	r &= ~(XUARTPS_CR_TX_EN | XUARTPS_CR_RX_EN); // Clear Tx & Rx Enable
-//	r |= XUARTPS_CR_RX_DIS | XUARTPS_CR_TX_DIS;	 // Tx & Rx Disable
-//	UART_CTRL = r;
-//
-//	// Connect to the interrupt controller (pointer to function)
-//	//  InterruptControllerInstancePtr->Config->HandlerTable[UARTPS_1_INTR].Handler = (Xil_InterruptHandler)UartIRQHandler;
-//
-////	int Status;
-////	Status = XScuGic_Connect(&InterruptControllerInstancePtr, UARTPS_1_INTR, (Xil_ExceptionHandler)UartIRQHandler, (void *)0);
-////	if (Status != XST_SUCCESS)
-////	{
-////		xil_printf("UART interrupt connection failed\n");
-////		return XST_FAILURE;
-////	}
-////
-////	XScuGic_Enable(&InterruptControllerInstancePtr, UARTPS_1_INTR);
-//
-//  // Connect to the interrupt controller (pointer to function)
-//	InterruptControllerInstancePtr->Config->HandlerTable[UARTPS_1_INTR].Handler = (Xil_InterruptHandler)UartIRQHandler;
-//
-//	// ICDISER1:  Interrupt Controller Distributor (ICD) - Interrupt Set-enable Register (ISER) 2
-//	ICDISER1 = 1 << (UARTPS_1_INTR % 32); // Modulo operator (% 2^n) stripping off all but the n LSB bits (removes offset 32)
-//
-//	UART_IER = 0 | XUARTPS_IXR_RXOVR;
-//	UART_IMR = 0 | XUARTPS_IXR_RXOVR;
-//	UART_IDR = XUARTPS_IXR_MASK & ~(XUARTPS_IXR_RXOVR);
-//
-//	//UART_IER = XUARTPS_IXR_MASK;
-//	//UART_IMR = XUARTPS_IXR_MASK;
-//	//UART_IDR = 0;
-//
-//	UART_RXWM = XUARTPS_RXWM_MASK & 1U;
-//
-//	UART_CTRL |= (XUARTPS_CR_TXRST | XUARTPS_CR_RXRST); // TX & RX logic reset
-//
-//	r = UART_CTRL;
-//	r |= XUARTPS_CR_RX_EN | XUARTPS_CR_TX_EN;	   // Set TX & RX enabled
-//	r &= ~(XUARTPS_CR_RX_DIS | XUARTPS_CR_TX_DIS); // Clear TX & RX disabled
-//	UART_CTRL = r;
-//
-//	UART_ISR = XUARTPS_IXR_MASK;
-//	Xil_ExceptionEnable();
-//}
+void initButtonInterrupts()
+{
+	xil_printf("init_button_interrupts");
+	int Status;
+
+	// Initializes BTNS_SWTS as an XGPIO.
+	Status = XGpio_Initialize(&BTNS_SWTS, BUTTONS_AXI_ID);
+	if (Status != XST_SUCCESS)
+	{
+		xil_printf("Buttons and switches error\n");
+		return XST_FAILURE;
+	}
+
+	Status = XGpio_Initialize(&LEDS, LEDS_AXI_ID);
+	if (Status != XST_SUCCESS)
+	{
+		xil_printf("LEDs error\n");
+		return XST_FAILURE;
+	}
+
+	// xil_printf("Set data direction buttons \n");
+	XGpio_SetDataDirection(&BTNS_SWTS, BUTTONS_channel, 0xF);
+	// xil_printf("Set data direction switches \n");
+	XGpio_SetDataDirection(&BTNS_SWTS, SWITCHES_channel, 0xF);
+	// xil_printf("Set data direction switches \n");
+	XGpio_SetDataDirection(&LEDS, LEDS_channel, 0x0);
+
+	// xil_printf("Initialize interrupts \n");
+	// Initializes interruptions.
+	Status = IntcInitFunction(INTC_DEVICE_ID);
+}
 
 int IntcInitFunction(u16 DeviceId)
 {
-	xil_printf("Hi\n");
 	xil_printf("Initializing interrupts\n");
 	int Status;
 
@@ -173,19 +126,6 @@ int IntcInitFunction(u16 DeviceId)
 	}
 	XScuGic_Enable(&INTCInstance, INT_PushButtons);
 
-	// Setup UART
-	//	xil_printf("Setting up UART \n");
-	//	SetupUART();
-	////	SetupUARTInterrupt(&INTCInstance);
-	//
-	//	// Setup UART interrupt
-	//		Status = XScuGic_Connect(&INTCInstance, UARTPS_1_INTR, (Xil_ExceptionHandler)UartIRQHandler, (void *)0);
-	//		if (Status != XST_SUCCESS) {
-	//			xil_printf("UART interrupt connection failed\n");
-	//			return XST_FAILURE;
-	//		}
-	//	XScuGic_Enable(&INTCInstance, UARTPS_1_INTR);
-
 	return XST_SUCCESS;
 }
 
@@ -205,12 +145,7 @@ int InterruptSystemSetup(XScuGic *XScuGicInstancePtr)
 								 (Xil_ExceptionHandler)PushButtons_Intr_Handler,
 								 XScuGicInstancePtr);
 
-	//	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_FIQ_INT,
-	//									 (Xil_ExceptionHandler)UartIRQHandler,
-	//									 XScuGicInstancePtr);
 	Xil_ExceptionEnableMask(XIL_EXCEPTION_FIQ);
-
-	// Xil_ExceptionEnable();
 
 	return XST_SUCCESS;
 }
@@ -218,23 +153,44 @@ int InterruptSystemSetup(XScuGic *XScuGicInstancePtr)
 void PushButtons_Intr_Handler(void *data)
 {
 	buttons = XGpio_DiscreteRead(&BTNS_SWTS, BUTTONS_channel);
+	int semaphoreState = acquireSemaphore(1);
 	switch (buttons)
 	{
 	case LD0:
-		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD0); // LD0
-		xil_printf("Pressed button 0\n");
-		ProcessEvent(0);
+		// Pressed button zero
+		// Check if the resource protected by semaphore is available
+		if (semaphoreState == 1)
+		{
+			//Buttons have control over the system, send event 0 (i.e. "go to next system state")
+			ProcessEvent(0);
+		}
 		break;
 	case LD1:
-		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD1); // LD1.
-		xil_printf("Pressed button 1\n");
-		ProcessEvent(1);
+		// Pressed button one
+		// Check if the resource protected by semaphore is available
+		if (semaphoreState == 1)
+		{
+			/*
+			 * Buttons have control over the system, send event 1 (i.e.
+			 * "go to CONFIGURATION_STATE_KI if in CONFIGURATION_STATE_KP" and go
+			 * to CONFIGURATION_STATE_KP if in CONFIGURATION_STATE_KI)
+			 */
+			ProcessEvent(1);
+		}
 		break;
 	case LD2:
-		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD2); // LD2.
+		xil_printf("Pressed button 2\n");
+		if (semaphoreState == 1)
+		{
+			processIncrementDecrementRequest(1);
+		}
 		break;
 	case LD3:
-		XGpio_DiscreteWrite(&LEDS, LEDS_channel, LD3); // LD3.
+		xil_printf("Pressed button 3\n");
+		if (semaphoreState == 1)
+		{
+			processIncrementDecrementRequest(0);
+		}
 		break;
 	}
 	XGpio_InterruptClear(&BTNS_SWTS, 0xF);

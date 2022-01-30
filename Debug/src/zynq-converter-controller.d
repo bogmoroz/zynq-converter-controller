@@ -23,7 +23,8 @@ src/zynq-converter-controller.o src/zynq-converter-controller.o: \
  ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xttcps.h \
  ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xttcps_hw.h \
  ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xuartps_hw.h \
- ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xparameters.h
+ ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xparameters.h \
+ ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xil_exception.h
 
 ../src/platform.h:
 
@@ -74,3 +75,5 @@ D:\XilinxWokrspace\zybo_platform/zynq_registers.h:
 ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xuartps_hw.h:
 
 ../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xparameters.h:
+
+../../zynq-converter-project_bsp/ps7_cortexa9_0/include/xil_exception.h:
