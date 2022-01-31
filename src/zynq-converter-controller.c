@@ -1,7 +1,7 @@
 /*
  * zynq-converter-controller.c
  *
- *  Created on: Jan 27, 2022
+ *  Created on: Jan 7, 2022
  *  Authors: Bogdan Moroz &  Anssi Ronkainen
  */
 #include <stdio.h>
@@ -283,7 +283,7 @@ int acquireSemaphore(int codeOfRequestSource)
 	{
 		int semaphoreState = getSemaphoreState();
 
-		Xil_ExceptionDisable();	 // Disable interrupts during semaphore access
+		Xil_ExceptionDisable(); // Disable interrupts during semaphore access
 		if (semaphoreState == 0)
 		{
 			setSemaphoreState(codeOfRequestSource); // Activate semaphore, grant access to the requesting source
@@ -293,7 +293,7 @@ int acquireSemaphore(int codeOfRequestSource)
 		}
 		else if (semaphoreState != codeOfRequestSource) // If one source requests access when another source has control over the semaphore
 		{
-			 // Tell user semaphore is locked
+			// Tell user semaphore is locked
 			if (semaphoreState == 1)
 			{
 				uartSendString("Trying to use UART but semaphore locked by buttons, please wait a few seconds...\n");
@@ -320,7 +320,6 @@ void releaseSemaphore(void) // releasing semaphore
 	setSemaphoreLockedPeriod(0);
 	setSemaphoreState(0); // semaphore released
 }
-
 
 /**
  * PI controller
@@ -509,7 +508,7 @@ int main()
 {
 	initButtonInterrupts(); // initialize button interrupts
 	setupUART();			// setup uart
-	setupRGBLed(); // Configure RGB led used to display controller output
+	setupRGBLed();			// Configure RGB led used to display controller output
 
 	setCurrentState(CONFIGURATION_STATE_KI); // Put the system into its initial state
 
