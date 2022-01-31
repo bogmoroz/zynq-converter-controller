@@ -1,25 +1,9 @@
 /*
- *	AXI_interrupts.c
- *  Originally created on: 16 Oct 2020
- *  Modified on: 11 Oct 2021
+ * interrupts_buttons.c
+ *
+ *  Created on: Jan 27, 2022
+ *  Authors: Bogdan Moroz &  Anssi Ronkainen
  */
-
-/*
- * NOTICE: These button and switch interrupts have been routed as FIQs in the FPGA,
- * and can't be disabled with Xil_ExceptionDisable().
- *
- * Technical explanation:
- * ARM supports two kinds of hardware interrupts: the regular IRQ interrupts
- * and "fast" FIQ interrupts. These are enabled by clearing two separate bits
- * in current program status register (CPSR): i-bit for IRQs and f-bit for FIQs.
- * Xil_ExceptionEnable() works by invoking ARM assembly code that clears the i-bit
- * and Xil_ExceptionDisable() sets the i-bit. Xil_ExceptionEnableMask(XIL_EXCEPTION_FIQ)
- * clears the f-bit and thus enables FIQ interrupts but for reasons unknown,
- * Xil_ExceptionDisableMask(XIL_EXCEPTION_FIQ) doesn't set the f-bit. While all the other
- * interrupts used in the course are IRQs, the button interrupts were routed as FIQs in the
- * FPGA and so we currently don't know of a way to disable them once they've been enabled.
- *
- * */
 #include <xparameters.h>
 #include <xgpio.h>
 #include <xuartps.h>
@@ -40,9 +24,6 @@
 #define INTC_DEVICE_ID XPAR_PS7_SCUGIC_0_DEVICE_ID
 #define INT_PushButtons 61
 
-// Interrupt (IRQ) ID# number for UART0 (XPAR_XUARTPS_1_INTR / XPS_UART1_INT_ID)
-// #define UARTPS_1_INTR 82U
-
 #define LD0 0x1
 #define LD1 0x2
 #define LD2 0x4
@@ -57,7 +38,6 @@ int InterruptSystemSetup(XScuGic *XScuGicInstancePtr);
 void PushButtons_Intr_Handler(void *data);
 
 /* Button interrupt */
-
 void initButtonInterrupts()
 {
 	xil_printf("init_button_interrupts");
@@ -78,15 +58,11 @@ void initButtonInterrupts()
 		return XST_FAILURE;
 	}
 
-	// xil_printf("Set data direction buttons \n");
 	XGpio_SetDataDirection(&BTNS_SWTS, BUTTONS_channel, 0xF);
-	// xil_printf("Set data direction switches \n");
 	XGpio_SetDataDirection(&BTNS_SWTS, SWITCHES_channel, 0xF);
-	// xil_printf("Set data direction switches \n");
 	XGpio_SetDataDirection(&LEDS, LEDS_channel, 0x0);
 
-	// xil_printf("Initialize interrupts \n");
-	// Initializes interruptions.
+	// Initializes interruptions
 	Status = IntcInitFunction(INTC_DEVICE_ID);
 }
 
@@ -134,7 +110,6 @@ int InterruptSystemSetup(XScuGic *XScuGicInstancePtr)
 	/*
 	 * Initialize the interrupt controller driver so that it is ready to use.
 	 * */
-
 	XGpio_InterruptEnable(&BTNS_SWTS, 0xF);
 	XGpio_InterruptGlobalEnable(&BTNS_SWTS);
 
@@ -185,16 +160,22 @@ void PushButtons_Intr_Handler(void *data)
 		{
 			/*
 			 * Buttons have control over the system, send increment or decrement request.
-			 * The request increments or decrements a Ki, Kp or the set point voltage, based on the state of the system.
+			 * The request increments Ki, Kp or the set point voltage, based on the state of the system.
 			 * processIncrementDecrementRequest interprets 1 as an increment request, and 0 as a decrement request.
 			 */
 			processIncrementDecrementRequest(1);
 		}
 		break;
 	case LD3:
-		xil_printf("Pressed button 3\n");
+		// Pressed button two
+	    // Check if the resource protected by semaphore is available
 		if (semaphoreState == 1)
 		{
+			/*
+			 * Buttons have control over the system, send increment or decrement request.
+			 * The request decrements Ki, Kp or the set point voltage, based on the state of the system.
+			 * processIncrementDecrementRequest interprets 1 as an increment request, and 0 as a decrement request.
+			 */
 			processIncrementDecrementRequest(0);
 		}
 		break;

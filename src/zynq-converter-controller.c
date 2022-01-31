@@ -1,4 +1,9 @@
-
+/*
+ * zynq-converter-controller.c
+ *
+ *  Created on: Jan 27, 2022
+ *  Authors: Bogdan Moroz &  Anssi Ronkainen
+ */
 #include <stdio.h>
 #include "platform.h"
 #include <xil_printf.h>
@@ -55,7 +60,7 @@ XScuGic InterruptControllerInstance; // Interrupt controller instance
 #define IDLING_STATE 2			 // Idling mode
 #define MODULATING_STATE 3		 // Modulating mode
 
-// int ProcessEvent();
+int ProcessEvent();
 
 float Ki = 0.001;			  // initialize Ki with value 0.001
 float Kp = 0.01;			  // initialize Kp with value 0.01
@@ -168,25 +173,6 @@ int getCurrentState() // Current state
 	return CurrentState; // Return current state
 }
 
-// Set LED outputs based on character value '1', '2', '3', '4'
-void set_leds(uint8_t input)
-{
-	if (input < '0' || '4' < input)
-		return;
-	uint8_t mask = 0;
-	// In a character table, '0' is the first out of the numbers.
-	// Its integer value can be something like 48 (ASCII).
-	// By subtracting it from input, we arrive at the actual
-	// number it's representing.
-	char c = input - '0';
-	for (uint8_t i = 0; i < c; i++)
-	{
-		mask <<= 1;	 // Bitwise left shift assignment
-		mask |= 0b1; // Set first bit true / led on
-	}
-	AXI_LED_DATA = mask; // LEDS LD3..0 - AXI LED DATA GPIO register bits [3:0]
-}
-
 int ProcessEvent(int Event) // Process state changes made with buttons
 {
 
@@ -245,10 +231,13 @@ void processIncrementDecrementRequest(int command)
 		{
 			setKp(getKp() - 0.01);
 		}
-		char outputStringKp[50];
-		sprintf(outputStringKp, "%f", getKp());
-		xil_printf(outputStringKp); // print out the new value
-		xil_printf("\n");
+
+		printSystemState();
+
+//		char outputStringKp[50];
+//		sprintf(outputStringKp, "%f", getKp());
+//		xil_printf(outputStringKp); // print out the new value
+//		xil_printf("\n");
 		return;
 	case CONFIGURATION_STATE_KI:
 
@@ -260,10 +249,13 @@ void processIncrementDecrementRequest(int command)
 		{
 			setKi(getKi() - 0.001);
 		}
-		char outputStringKi[50];
-		sprintf(outputStringKi, "%f", getKi());
-		xil_printf(outputStringKi); // print out the new value
-		xil_printf("\n");
+
+		printSystemState();
+
+//		char outputStringKi[50];
+//		sprintf(outputStringKi, "%f", getKi());
+//		xil_printf(outputStringKi); // print out the new value
+//		xil_printf("\n");
 		return;
 	case MODULATING_STATE:
 
@@ -276,10 +268,12 @@ void processIncrementDecrementRequest(int command)
 			setVoltageSetPoint(getVoltageSetPoint() - 1);
 		}
 
-		char outputStringVoltage[50];
-		sprintf(outputStringVoltage, "%f", getVoltageSetPoint());
-		xil_printf(outputStringVoltage); // print out the new value
-		xil_printf("\n");
+		printSystemState();
+
+//		char outputStringVoltage[50];
+//		sprintf(outputStringVoltage, "%f", getVoltageSetPoint());
+//		xil_printf(outputStringVoltage); // print out the new value
+//		xil_printf("\n");
 		return;
 	default:
 		return;
@@ -542,9 +536,6 @@ int main()
 
 			if (isdigit(*rx_buf) && index >= 1) // check if the received character was a number
 			{
-				xil_printf("Input is a number \n");
-				xil_printf("Input: %s \n", rx_buf);
-
 				float resolvedNumber = atof(rx_buf); // change received number from string to float
 
 				if (getCurrentState() == CONFIGURATION_STATE_KI) // if we are in config Ki state
@@ -668,7 +659,6 @@ int main()
 			{
 				if (currentSemaphoreLockedPeriod > 900) // timeout timer for semaphore, 900 equals to ~8 seconds
 				{
-					xil_printf("Current locked period: %d ", currentSemaphoreLockedPeriod);
 					uartSendString("Timeout passed, releasing semaphore \n");
 					releaseSemaphore(); // release semaphore
 					printSystemState();

@@ -1,8 +1,8 @@
 /*
- * led_drivers.c
+ *  led_drivers.c
  *
  *  Created on: Jan 27, 2022
- *      Authors: Anssi & Bogdan
+ *  Authors:  Anssi Ronkainen & Bogdan Moroz
  */
 #include <zynq_registers.h>
 #include <xttcps.h>

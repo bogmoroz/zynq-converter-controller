@@ -2,7 +2,7 @@
  * uart_comms.c
  *
  *  Created on: Jan 27, 2022
- *      Authors: Anssi & Bogdan
+ *  Authors: Anssi Ronkainen & Bogdan Moroz
  */
 
 #include <xuartps_hw.h>
