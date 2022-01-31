@@ -33,6 +33,8 @@ XGpio BTNS_SWTS, LEDS;
 static XScuGic INTCInstance;
 u8 buttons = 0;
 
+
+void initButtonInterrupts();
 int IntcInitFunction(u16 DeviceId);
 int InterruptSystemSetup(XScuGic *XScuGicInstancePtr);
 void PushButtons_Intr_Handler(void *data);

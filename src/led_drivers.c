@@ -7,10 +7,10 @@
 #include <zynq_registers.h>
 #include <xttcps.h>
 
-void setupTimersAndRGBLed()
+void setupRGBLed();
+
+void setupRGBLed()
 {
-    /* PWM input */
-    // Setup timer and RBG Led ()
     TTC0_CLK_CNTRL = (0 << XTTCPS_CLK_CNTRL_PS_VAL_SHIFT) | XTTCPS_CLK_CNTRL_PS_EN_MASK;
     TTC0_CLK_CNTRL2 = (0 << XTTCPS_CLK_CNTRL_PS_VAL_SHIFT) | XTTCPS_CLK_CNTRL_PS_EN_MASK;
     TTC0_CLK_CNTRL3 = (0 << XTTCPS_CLK_CNTRL_PS_VAL_SHIFT) | XTTCPS_CLK_CNTRL_PS_EN_MASK;

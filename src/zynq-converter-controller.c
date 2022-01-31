@@ -233,11 +233,6 @@ void processIncrementDecrementRequest(int command)
 		}
 
 		printSystemState();
-
-//		char outputStringKp[50];
-//		sprintf(outputStringKp, "%f", getKp());
-//		xil_printf(outputStringKp); // print out the new value
-//		xil_printf("\n");
 		return;
 	case CONFIGURATION_STATE_KI:
 
@@ -251,11 +246,6 @@ void processIncrementDecrementRequest(int command)
 		}
 
 		printSystemState();
-
-//		char outputStringKi[50];
-//		sprintf(outputStringKi, "%f", getKi());
-//		xil_printf(outputStringKi); // print out the new value
-//		xil_printf("\n");
 		return;
 	case MODULATING_STATE:
 
@@ -269,11 +259,6 @@ void processIncrementDecrementRequest(int command)
 		}
 
 		printSystemState();
-
-//		char outputStringVoltage[50];
-//		sprintf(outputStringVoltage, "%f", getVoltageSetPoint());
-//		xil_printf(outputStringVoltage); // print out the new value
-//		xil_printf("\n");
 		return;
 	default:
 		return;
@@ -281,6 +266,15 @@ void processIncrementDecrementRequest(int command)
 }
 
 /* Semaphores */
+/**
+ * Function that increments or decrements a given value based on the current state of the system.
+ * In CONFIGURATION_STATE_KP, the function increments or decrements Kp.
+ * In CONFIGURATION_STATE_KI, the function increments or decrements Ki.
+ * In MODULATING_STATE, the function increments or decrements the voltage set point.
+ *
+ * @parameter codeOfRequestSource - 1 means "buttons", 0 means "UART"
+ * @returns semaphoreState
+ */
 //0 for unlocked 1 for buttons, 2 for UART
 int acquireSemaphore(int codeOfRequestSource)
 {
@@ -290,15 +284,16 @@ int acquireSemaphore(int codeOfRequestSource)
 		int semaphoreState = getSemaphoreState();
 
 		Xil_ExceptionDisable();	 // Disable interrupts during semaphore access
-		if (semaphoreState == 0) // check if value of s has changed during execution of last 2 lines
+		if (semaphoreState == 0)
 		{
-			setSemaphoreState(codeOfRequestSource); // Activate semaphore
-			// Start timer value to release the semaphore after a timeout
+			setSemaphoreState(codeOfRequestSource); // Activate semaphore, grant access to the requesting source
 			xil_printf("Acquiring semaphore...\n");
+			// Start timer value to release the semaphore after a timeout
 			setSemaphoreLockedPeriod(0);
 		}
-		else if (semaphoreState != codeOfRequestSource) // Tell user semaphore is locked
+		else if (semaphoreState != codeOfRequestSource) // If one source requests access when another source has control over the semaphore
 		{
+			 // Tell user semaphore is locked
 			if (semaphoreState == 1)
 			{
 				uartSendString("Trying to use UART but semaphore locked by buttons, please wait a few seconds...\n");
@@ -310,7 +305,8 @@ int acquireSemaphore(int codeOfRequestSource)
 		}
 		else if (semaphoreState == codeOfRequestSource)
 		{
-			setSemaphoreLockedPeriod(0); // reset timer for semaphore timeout
+			// Resource that is already using the semaphore is requesting access again, reset the semaphore release timeout
+			setSemaphoreLockedPeriod(0);
 		}
 
 		check = false;		   // Leave loop
@@ -325,6 +321,10 @@ void releaseSemaphore(void) // releasing semaphore
 	setSemaphoreState(0); // semaphore released
 }
 
+
+/**
+ * PI controller
+ */
 float PI(float y_ref, float y_act, float Ki, float Kp) // PI controller
 {
 	static float u1_old = 0;		  // initialize old value of u1
@@ -388,7 +388,14 @@ float convert(float u)
 	return states[5]; // Return u3 as output
 };
 
-float atof(const char *s) // we only need atof from stdlib.h
+/*
+ * atof is the only function we need from stdlib.h, so instead of importing stdlib we
+ * are defining atof here to optimize the program
+ *
+ * @parameter s - string that we want to convert to float
+ * @returns float value parsed from the string parameter
+ */
+float atof(const char *s)
 {
 	float a = 0.0;
 	int e = 0;
@@ -437,8 +444,11 @@ float atof(const char *s) // we only need atof from stdlib.h
 	return a;
 }
 
+/*
+ * print the current status of the system
+ */
 void printSystemState()
-{ // print the current status of the system
+{
 	uartSendString("=================================\n");
 	uartSendString("System is now in state: ");
 	int systemState = getCurrentState();
@@ -499,7 +509,7 @@ int main()
 {
 	initButtonInterrupts(); // initialize button interrupts
 	setupUART();			// setup uart
-	setupTimersAndRGBLed();
+	setupRGBLed(); // Configure RGB led used to display controller output
 
 	setCurrentState(CONFIGURATION_STATE_KI); // Put the system into its initial state
 
@@ -516,9 +526,9 @@ int main()
 		char input = '1';
 		input = uartReceive(); // Receive constantly from UART
 
+		// The following if-else block handles input from UART (string and numeric)
 		if (input) // if something is received from UART
 		{
-
 			int index = 0;
 
 			char rx_buf[30];
@@ -538,7 +548,7 @@ int main()
 			{
 				float resolvedNumber = atof(rx_buf); // change received number from string to float
 
-				if (getCurrentState() == CONFIGURATION_STATE_KI) // if we are in config Ki state
+				if (getCurrentState() == CONFIGURATION_STATE_KI) // if we are in CONFIGURATION_STATE_KI
 				{
 					int semaphoreState = acquireSemaphore(2); // check if the semaphore is reserved for UART
 					if (semaphoreState == 2)
@@ -579,8 +589,15 @@ int main()
 			}
 			else
 			{
-				// if the received UART input is one the defined states, we change state accordingy
+				// if the received UART input is one the defined states, we change state accordingly
 
+				// if the input string is equal to CONFIGURATION_STATE_KI
+				/*
+				 * rx_buf has a fixed length of 30. When we read an input string, we write the first several characters of rx_buf.
+				 * The length of the read input is equal to "index". With strncmp we compare the "substring" of rx_buf of length equal to index
+				 * to the provided system state string. This allows us to discard the autofilled end of
+				 * the rx_buf and only compare the input prefix to the state string.
+				 */
 				if (index > 1 && strncmp("CONFIGURATION_STATE_KI", rx_buf, index) == 0)
 				{
 					int semaphoreState = acquireSemaphore(2); // check if the semaphore is reserved for UART
@@ -589,6 +606,7 @@ int main()
 						setCurrentState(CONFIGURATION_STATE_KI); // Switch state to CONFIGURATION_STATE_KI
 					}
 				}
+				// if the input string is equal to CONFIGURATION_STATE_KP
 				else if (index > 1 && strncmp("CONFIGURATION_STATE_KP", rx_buf, index) == 0)
 				{
 					int semaphoreState = acquireSemaphore(2); // check if the semaphore is reserved for UART
@@ -597,6 +615,7 @@ int main()
 						setCurrentState(CONFIGURATION_STATE_KP); // Switch state to CONFIGURATION_STATE_KP
 					}
 				}
+				// if the input string is equal to IDLING_STATE
 				else if (index > 1 && strncmp("IDLING_STATE", rx_buf, index) == 0)
 				{
 					int semaphoreState = acquireSemaphore(2); // check if the semaphore is reserved for UART
@@ -605,6 +624,7 @@ int main()
 						setCurrentState(IDLING_STATE); // Switch state to IDLING_STATE
 					}
 				}
+				// if the input string is equal to MODULATING_STATE
 				else if (index > 1 && strncmp("MODULATING_STATE", rx_buf, index) == 0)
 				{
 					int semaphoreState = acquireSemaphore(2); // check if the semaphore is reserved for UART
