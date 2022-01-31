@@ -656,7 +656,11 @@ int main()
 				state == 2 ? state = 0 : state++; // change state
 				// Send reference voltage and current voltage to controller
 				u1 = PI(getVoltageSetPoint(), u2, getKi(), getKp()); // input reference voltage u0, current voltage u2, Ki and Kp to PI controller
-				*ptr_register = u1 * 1000;
+				if (u1 * 1000 > 65535) { // check if we're reaching the max value of 16 bit register
+					*ptr_register = 65535; // set rbg led brightness to max value to avoid dimming of led while converting
+				} else {
+					*ptr_register = u1 * 1000; // set rbg led brightness to a brighter value with lower voltages
+				}
 				u2 = convert(u1); // convert the input from PI controller to output voltage u2
 
 				setConverterOutputVoltate(u2);
