@@ -65,7 +65,7 @@ int ProcessEvent();
 float Ki = 0.001;			  // initialize Ki with value 0.001
 float Kp = 0.01;			  // initialize Kp with value 0.01
 float voltageSetPoint = 50.0; // initialize reference voltage with value 50
-float converterOutputVoltate = 0.0;
+float converterOutputVoltage = 0.0;
 
 // Semaphore: 0 for unlocked, 1 for locked with buttons, 2 for locked with uart
 int semaphoreState = 0;
@@ -121,14 +121,14 @@ float getVoltageSetPoint(void) // Get Reference Voltage value
 	return voltageSetPoint;
 }
 
-void setConverterOutputVoltate(float n)
+void setConverterOutputVoltage(float n)
 {
-	converterOutputVoltate = n;
+	converterOutputVoltage = n;
 }
 
-float getConverterOutputVoltate(void)
+float getConverterOutputVoltage(void)
 {
-	return converterOutputVoltate;
+	return converterOutputVoltage;
 }
 /* Setup State change table for buttons, 
 first button switches between idling state, modulating state and configuration state Ki
@@ -482,7 +482,7 @@ void printSystemState()
 
 	if (systemState == MODULATING_STATE)
 	{
-		sprintf(outputString, "Current converter output: %f volts.", getConverterOutputVoltate());
+		sprintf(outputString, "Current converter output: %f volts.", getConverterOutputVoltage());
 		uartSendString(outputString);
 		uartSendString("\n");
 	}
@@ -663,7 +663,7 @@ int main()
 				}
 				u2 = convert(u1); // convert the input from PI controller to output voltage u2
 
-				setConverterOutputVoltate(u2);
+				setConverterOutputVoltage(u2);
 
 				char c[50]; //size of the number
 
